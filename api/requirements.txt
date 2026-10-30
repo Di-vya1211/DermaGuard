@@ -1,0 +1,2 @@
+# Vercel Serverless Function requirements
+# Lightweight dependencies to ensure fast sub-minute builds and compliance with Vercel's 250MB limit

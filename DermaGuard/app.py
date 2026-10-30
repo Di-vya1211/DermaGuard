@@ -61,27 +61,86 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Theme Selector (Dark [Grey], Light Dark [Medium Grey], Light)
+if "app_theme_mode" not in st.session_state:
+    st.session_state["app_theme_mode"] = "Dark"
+
+theme_mode = st.sidebar.radio(
+    "🎨 Display Mode",
+    ["Dark", "Light Dark", "Light"],
+    index=["Dark", "Light Dark", "Light"].index(st.session_state.get("app_theme_mode", "Dark")),
+    horizontal=True,
+    key="app_theme_mode",
+    help="Dark: Slate Grey | Light Dark: Cool Grey | Light: Clinical White"
+)
+
+# Dynamic theme palettes
+if theme_mode == "Dark":
+    bg_color = "#1e2025"       # Slate grey dark background (not pitch black)
+    sidebar_bg = "#262a32"     # Charcoal slate
+    card_bg = "#2d323c"        # Medium-dark grey surface
+    text_color = "#f3f4f6"
+    subtext_color = "#9ca3af"
+    border_color = "#3d4452"
+    banner_bg = "linear-gradient(135deg, #181a1f 0%, #262a32 50%, #1e2e38 100%)"
+    card_text = "#ffffff"
+    table_bg = "#262a32"
+elif theme_mode == "Light Dark":
+    bg_color = "#383e4a"       # Medium steel grey
+    sidebar_bg = "#2e3440"     # Darker steel
+    card_bg = "#444b58"        # Lighter steel grey surface
+    text_color = "#ffffff"
+    subtext_color = "#d1d5db"
+    border_color = "#555e70"
+    banner_bg = "linear-gradient(135deg, #2b303a 0%, #3a414e 50%, #2f434c 100%)"
+    card_text = "#ffffff"
+    table_bg = "#3a414e"
+else:  # Light
+    bg_color = "#f6f8fb"       # Off-white
+    sidebar_bg = "#ffffff"
+    card_bg = "#ffffff"
+    text_color = "#0f172a"
+    subtext_color = "#64748b"
+    border_color = "#e2e8f0"
+    banner_bg = "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f766e 100%)"
+    card_text = "#0f172a"
+    table_bg = "#ffffff"
+
 # Custom Styling
-st.markdown("""
+st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
     
-    html, body, [class*="css"] {
+    html, body, .stApp {{
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+        background-color: {bg_color} !important;
+        color: {text_color} !important;
+    }}
+    
+    section[data-testid="stSidebar"] {{
+        background-color: {sidebar_bg} !important;
+        border-right: 1px solid {border_color} !important;
+    }}
+    
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] div {{
+        color: {text_color} !important;
+    }}
     
     /* Hero Header */
-    .hero-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f766e 100%);
+    .hero-banner {{
+        background: {banner_bg} !important;
         border-radius: 16px;
         padding: 22px 30px;
         color: white;
         margin-bottom: 20px;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+        border: 1px solid {border_color};
+    }}
     
-    .hero-badge {
+    .hero-badge {{
         display: inline-block;
         background: rgba(14, 165, 233, 0.2);
         color: #38bdf8;
@@ -93,31 +152,31 @@ st.markdown("""
         text-transform: uppercase;
         margin-bottom: 6px;
         border: 1px solid rgba(56, 189, 248, 0.3);
-    }
+    }}
     
-    .hero-title {
+    .hero-title {{
         font-size: 28px;
         font-weight: 800;
         letter-spacing: -0.02em;
         margin: 0;
         color: #f8fafc;
-    }
+    }}
     
-    .hero-desc {
+    .hero-desc {{
         color: #cbd5e1;
         font-size: 13.5px;
         margin-top: 4px;
         margin-bottom: 12px;
-    }
+    }}
     
-    .pill-row {
+    .pill-row {{
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
         margin-top: 6px;
-    }
+    }}
     
-    .status-pill {
+    .status-pill {{
         background: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(255, 255, 255, 0.15);
         padding: 3px 10px;
@@ -127,144 +186,165 @@ st.markdown("""
         display: inline-flex;
         align-items: center;
         gap: 6px;
-    }
+    }}
 
-    /* Six-Agent Pipeline Flow Cards (Matching Day 2 Brief Example) */
-    .flow-container {
+    /* Six-Agent Pipeline Flow Cards */
+    .flow-container {{
         display: grid;
         grid-template-columns: repeat(5, 1fr);
         gap: 12px;
         margin-top: 14px;
         margin-bottom: 20px;
-    }
+    }}
 
-    .flow-card {
-        background: #1e293b;
-        color: white;
+    .flow-card {{
+        background: {card_bg} !important;
+        color: {card_text} !important;
         border-radius: 12px;
         padding: 14px 16px;
-        border: 1px solid #334155;
+        border: 1px solid {border_color} !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         text-align: center;
-    }
+    }}
 
-    .flow-tag {
+    .flow-tag {{
         font-size: 11px;
         font-weight: 700;
-        color: #94a3b8;
+        color: {subtext_color} !important;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: 4px;
-    }
+    }}
 
-    .flow-val {
+    .flow-val {{
         font-size: 16px;
         font-weight: 800;
         margin-bottom: 4px;
         font-family: 'JetBrains Mono', monospace;
-    }
+    }}
 
-    .flow-desc {
+    .flow-desc {{
         font-size: 11.5px;
-        color: #cbd5e1;
+        color: {subtext_color} !important;
         line-height: 1.3;
-    }
+    }}
 
     /* Tri-Decision Banner */
-    .decision-banner {
+    .decision-banner {{
         border-radius: 14px;
         padding: 16px 20px;
         margin-bottom: 18px;
         border: 1px solid;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    }
+    }}
 
-    .decision-title {
+    .decision-title {{
         font-size: 18px;
         font-weight: 800;
         display: flex;
         align-items: center;
         gap: 10px;
-    }
+    }}
 
-    .decision-body {
+    .decision-body {{
         font-size: 13px;
         margin-top: 6px;
         line-height: 1.5;
-    }
+        color: {text_color} !important;
+    }}
 
-    .decision-meta {
+    .decision-meta {{
         font-size: 11.5px;
         font-weight: 600;
         margin-top: 8px;
         padding-top: 8px;
-        border-top: 1px dashed rgba(0,0,0,0.15);
+        border-top: 1px dashed rgba(120,120,120,0.3);
         display: flex;
         justify-content: space-between;
-    }
+        color: {subtext_color} !important;
+    }}
     
     /* Metric mini cards */
-    .metric-grid {
+    .metric-grid {{
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
         gap: 8px;
         margin-top: 10px;
         margin-bottom: 10px;
-    }
+    }}
     
-    .metric-box {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+    .metric-box {{
+        background: {card_bg} !important;
+        border: 1px solid {border_color} !important;
         border-radius: 9px;
         padding: 8px 10px;
         font-size: 11.5px;
-    }
+    }}
     
-    .metric-box-failed {
-        background: #fff1f2;
-        border: 1px solid #fecdd3;
+    .metric-box-failed {{
+        background: {'#451820' if theme_mode != 'Light' else '#fff1f2'} !important;
+        border: 1px solid {'#f43f5e' if theme_mode != 'Light' else '#fecdd3'} !important;
         border-radius: 9px;
         padding: 8px 10px;
         font-size: 11.5px;
-    }
+    }}
     
-    .metric-title {
-        color: #64748b;
+    .metric-title {{
+        color: {subtext_color} !important;
         font-size: 10.5px;
         font-weight: 600;
         text-transform: uppercase;
         margin-bottom: 2px;
-    }
+    }}
     
-    .metric-val {
+    .metric-val {{
         font-size: 14px;
         font-weight: 700;
-        color: #0f172a;
+        color: {text_color} !important;
         font-family: 'JetBrains Mono', monospace;
-    }
+    }}
     
-    .metric-status-pass {
-        color: #059669;
+    .metric-status-pass {{
+        color: #10b981 !important;
         font-weight: 600;
         font-size: 10.5px;
-    }
+    }}
     
-    .metric-status-fail {
-        color: #e11d48;
+    .metric-status-fail {{
+        color: #f43f5e !important;
         font-weight: 700;
         font-size: 10.5px;
-    }
+    }}
 
-    .agent-header {
+    .agent-header {{
         font-size: 15px;
         font-weight: 700;
-        color: #0f172a;
+        color: {text_color} !important;
         display: flex;
         align-items: center;
         gap: 6px;
         margin-top: 8px;
         margin-bottom: 8px;
-    }
+    }}
+
+    /* Tabs */
+    button[data-baseweb="tab"] {{
+        color: {text_color} !important;
+    }}
+    button[data-baseweb="tab"][aria-selected="true"] {{
+        border-bottom-color: #0ea5e9 !important;
+        color: #0ea5e9 !important;
+    }}
+    
+    div[data-testid="stExpander"] {{
+        background: {card_bg} !important;
+        border: 1px solid {border_color} !important;
+        border-radius: 8px !important;
+    }}
+    
+    p, span, label, h1, h2, h3, h4, h5, h6 {{
+        color: {text_color};
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -464,7 +544,7 @@ st.sidebar.caption("""
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔬 Six-Agent Screening & Triage",
     "🤖 The Six-Agent System Architecture",
-    "📊 Day 2 Technical Evaluation & Panel Presentation",
+    "📊 Clinical Performance & Benchmark Analytics",
     "📁 Final CSV Submission (Day 2 Upload)",
     "📐 Calibrated Thresholds & Rationale",
 ])
@@ -497,7 +577,6 @@ with tab1:
         # ----------------------------------------------------------------------
         # EXACT 5-CARD PIPELINE FLOW (Matching Day 2 Brief Example Diagram)
         # ----------------------------------------------------------------------
-        st.markdown("#### 🔄 Six-Agent Decision Pipeline (Day 2 Flow)")
         fs = coord_res["flow_summary"]
         st.markdown(f"""
         <div class="flow-container">
@@ -688,12 +767,12 @@ with tab2:
 
 
 # ------------------------------------------------------------------------------
-# TAB 3: DAY 2 TECHNICAL EVALUATION & PANEL PRESENTATION
+# TAB 3: CLINICAL PERFORMANCE & BENCHMARK ANALYTICS
 # ------------------------------------------------------------------------------
 with tab3:
-    st.markdown("### 📊 Day 2 Technical Evaluation & Panel Presentation")
+    st.markdown("### 📊 Clinical Performance & Benchmark Analytics")
     st.markdown("""
-    Official performance benchmark evaluated across all **1,942 validation images** for the summit evaluation panel:
+    Official performance benchmark evaluated across all **1,942 validation images**:
     """)
 
     if six_summary and "day2_demonstration_metrics" in six_summary:
