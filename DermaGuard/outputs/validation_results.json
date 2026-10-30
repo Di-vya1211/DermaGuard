@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-10-30 18:22:12",
+  "total_validation_images": 1942,
+  "classification_performance": {
+    "top1_accuracy": 0.8867,
+    "balanced_accuracy": 0.8686,
+    "macro_f1": 0.8725,
+    "weighted_f1": 0.8953,
+    "malignancy_sensitivity": 0.9101,
+    "per_class": {
+      "akiec": {
+        "precision": 0.8281,
+        "recall": 0.8413,
+        "f1": 0.8346,
+        "support": 63.0
+      },
+      "bcc": {
+        "precision": 0.9184,
+        "recall": 0.8911,
+        "f1": 0.9045,
+        "support": 101.0
+      },
+      "bkl": {
+        "precision": 0.5449,
+        "recall": 0.8868,
+        "f1": 0.675,
+        "support": 212.0
+      },
+      "df": {
+        "precision": 1.0,
+        "recall": 0.8261,
+        "f1": 0.9048,
+        "support": 23.0
+      },
+      "mel": {
+        "precision": 1.0,
+        "recall": 0.8505,
+        "f1": 0.9192,
+        "support": 214.0
+      },
+      "nv": {
+        "precision": 0.9636,
+        "recall": 0.8955,
+        "f1": 0.9283,
+        "support": 1302.0
+      },
+      "vasc": {
+        "precision": 1.0,
+        "recall": 0.8889,
+        "f1": 0.9412,
+        "support": 27.0
+      }
+    }
+  },
+  "image_quality_outcomes": {
+    "good_count": 1382,
+    "acceptable_count": 336,
+    "poor_count": 224,
+    "good_pct": 71.2,
+    "acceptable_pct": 17.3,
+    "poor_pct": 11.5,
+    "pass_rate_pct": 88.5,
+    "defect_frequencies": {
+      "hair": 99,
+      "contrast": 102,
+      "dark_corner": 92,
+      "occlusion": 114,
+      "brightness": 191,
+      "glare": 112,
+      "blur": 118
+    }
+  },
+  "tri_decision_distribution": {
+    "AUTO_TRIAGE": 1320,
+    "REFER": 398,
+    "RE_IMAGE": 224,
+    "AUTO_TRIAGE_pct": 68.0,
+    "REFER_pct": 20.5,
+    "RE_IMAGE_pct": 11.5
+  }
+}

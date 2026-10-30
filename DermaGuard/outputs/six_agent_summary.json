@@ -1,0 +1,95 @@
+{
+  "timestamp": "2026-10-30 22:14:08",
+  "total_images": 1942,
+  "accuracy": 0.8867,
+  "accuracy_pct": 88.67,
+  "macro_f1": 0.8725,
+  "macro_f1_pct": 87.25,
+  "day2_demonstration_metrics": {
+    "correct_auto_triage": 1089,
+    "incorrect_auto_triage": 44,
+    "auto_triage_accuracy": 96.12,
+    "number_of_refers": 585,
+    "number_of_re_image": 224,
+    "total_auto_triage": 1133
+  },
+  "action_percentages": {
+    "auto_triage_pct": 58.3,
+    "refer_pct": 30.1,
+    "re_image_pct": 11.5
+  },
+  "confusion_matrix": [
+    [
+      53,
+      8,
+      2,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      11,
+      90,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      188,
+      0,
+      0,
+      24,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      19,
+      0,
+      4,
+      0
+    ],
+    [
+      0,
+      0,
+      19,
+      0,
+      182,
+      13,
+      0
+    ],
+    [
+      0,
+      0,
+      136,
+      0,
+      0,
+      1166,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      24
+    ]
+  ],
+  "classes": [
+    "akiec",
+    "bcc",
+    "bkl",
+    "df",
+    "mel",
+    "nv",
+    "vasc"
+  ]
+}

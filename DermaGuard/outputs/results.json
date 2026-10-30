@@ -1,0 +1,278 @@
+{
+  "efficientnet_b0": {
+    "architecture": "efficientnet_b0",
+    "display_name": "EfficientNet-B0",
+    "description": "Compound scaling convolutional architecture; superior feature representation with low parameter footprint.",
+    "params_millions": 5.3,
+    "latency_ms": 14.2,
+    "is_champion": true,
+    "metrics": {
+      "accuracy": 0.8852,
+      "balanced_accuracy": 0.8926,
+      "macro_f1": 0.7638,
+      "weighted_f1": 0.8928,
+      "precision": 0.6951,
+      "recall": 0.8926,
+      "malignancy_sensitivity": 0.9048,
+      "benign_specificity": 0.9405,
+      "per_class": {
+        "akiec": {
+          "precision": 0.5758,
+          "recall": 0.9048,
+          "f1_score": 0.7037,
+          "support": 63,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bcc": {
+          "precision": 0.7295,
+          "recall": 0.8812,
+          "f1_score": 0.7982,
+          "support": 101,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bkl": {
+          "precision": 0.84,
+          "recall": 0.8915,
+          "f1_score": 0.865,
+          "support": 212,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "df": {
+          "precision": 0.4082,
+          "recall": 0.8696,
+          "f1_score": 0.5556,
+          "support": 23,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "mel": {
+          "precision": 0.8505,
+          "recall": 0.8505,
+          "f1_score": 0.8505,
+          "support": 214,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "nv": {
+          "precision": 0.9805,
+          "recall": 0.8879,
+          "f1_score": 0.9319,
+          "support": 1302,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "vasc": {
+          "precision": 0.4815,
+          "recall": 0.963,
+          "f1_score": 0.642,
+          "support": 27,
+          "risk_tier": "Low Risk (Benign)"
+        }
+      }
+    }
+  },
+  "resnet50": {
+    "architecture": "resnet50",
+    "display_name": "ResNet-50",
+    "description": "50-layer deep residual network with bottleneck blocks; standard medical imaging baseline.",
+    "params_millions": 25.6,
+    "latency_ms": 28.5,
+    "is_champion": false,
+    "metrics": {
+      "accuracy": 0.8625,
+      "balanced_accuracy": 0.8638,
+      "macro_f1": 0.7246,
+      "weighted_f1": 0.8731,
+      "precision": 0.6561,
+      "recall": 0.8638,
+      "malignancy_sensitivity": 0.9206,
+      "benign_specificity": 0.9335,
+      "per_class": {
+        "akiec": {
+          "precision": 0.5327,
+          "recall": 0.9048,
+          "f1_score": 0.6706,
+          "support": 63,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bcc": {
+          "precision": 0.7265,
+          "recall": 0.8416,
+          "f1_score": 0.7798,
+          "support": 101,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bkl": {
+          "precision": 0.7854,
+          "recall": 0.8632,
+          "f1_score": 0.8225,
+          "support": 212,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "df": {
+          "precision": 0.3684,
+          "recall": 0.913,
+          "f1_score": 0.525,
+          "support": 23,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "mel": {
+          "precision": 0.8333,
+          "recall": 0.8879,
+          "f1_score": 0.8597,
+          "support": 214,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "nv": {
+          "precision": 0.9781,
+          "recall": 0.8587,
+          "f1_score": 0.9145,
+          "support": 1302,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "vasc": {
+          "precision": 0.3684,
+          "recall": 0.7778,
+          "f1_score": 0.5,
+          "support": 27,
+          "risk_tier": "Low Risk (Benign)"
+        }
+      }
+    }
+  },
+  "convnext_tiny": {
+    "architecture": "convnext_tiny",
+    "display_name": "ConvNeXt-Tiny",
+    "description": "Pure convolutional network modernized with Vision Transformer design principles.",
+    "params_millions": 28.6,
+    "latency_ms": 26.1,
+    "is_champion": false,
+    "metrics": {
+      "accuracy": 0.8759,
+      "balanced_accuracy": 0.8598,
+      "macro_f1": 0.7401,
+      "weighted_f1": 0.8849,
+      "precision": 0.6744,
+      "recall": 0.8598,
+      "malignancy_sensitivity": 0.9074,
+      "benign_specificity": 0.9399,
+      "per_class": {
+        "akiec": {
+          "precision": 0.5714,
+          "recall": 0.8889,
+          "f1_score": 0.6957,
+          "support": 63,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bcc": {
+          "precision": 0.7177,
+          "recall": 0.8812,
+          "f1_score": 0.7911,
+          "support": 101,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bkl": {
+          "precision": 0.7731,
+          "recall": 0.8679,
+          "f1_score": 0.8178,
+          "support": 212,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "df": {
+          "precision": 0.3269,
+          "recall": 0.7391,
+          "f1_score": 0.4533,
+          "support": 23,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "mel": {
+          "precision": 0.8698,
+          "recall": 0.8738,
+          "f1_score": 0.8718,
+          "support": 214,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "nv": {
+          "precision": 0.982,
+          "recall": 0.8786,
+          "f1_score": 0.9274,
+          "support": 1302,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "vasc": {
+          "precision": 0.48,
+          "recall": 0.8889,
+          "f1_score": 0.6234,
+          "support": 27,
+          "risk_tier": "Low Risk (Benign)"
+        }
+      }
+    }
+  },
+  "mobilenet_v3": {
+    "architecture": "mobilenet_v3",
+    "display_name": "MobileNet-V3-Large",
+    "description": "Hardware-aware neural architecture search optimized for rapid edge point-of-care dermoscopy.",
+    "params_millions": 5.4,
+    "latency_ms": 9.8,
+    "is_champion": false,
+    "metrics": {
+      "accuracy": 0.846,
+      "balanced_accuracy": 0.8354,
+      "macro_f1": 0.7025,
+      "weighted_f1": 0.8575,
+      "precision": 0.633,
+      "recall": 0.8354,
+      "malignancy_sensitivity": 0.8862,
+      "benign_specificity": 0.915,
+      "per_class": {
+        "akiec": {
+          "precision": 0.4907,
+          "recall": 0.8413,
+          "f1_score": 0.6199,
+          "support": 63,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bcc": {
+          "precision": 0.6214,
+          "recall": 0.8614,
+          "f1_score": 0.722,
+          "support": 101,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "bkl": {
+          "precision": 0.7553,
+          "recall": 0.8443,
+          "f1_score": 0.7973,
+          "support": 212,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "df": {
+          "precision": 0.3878,
+          "recall": 0.8261,
+          "f1_score": 0.5278,
+          "support": 23,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "mel": {
+          "precision": 0.8273,
+          "recall": 0.8505,
+          "f1_score": 0.8387,
+          "support": 214,
+          "risk_tier": "High Risk (Malignant)"
+        },
+        "nv": {
+          "precision": 0.9735,
+          "recall": 0.8464,
+          "f1_score": 0.9055,
+          "support": 1302,
+          "risk_tier": "Low Risk (Benign)"
+        },
+        "vasc": {
+          "precision": 0.375,
+          "recall": 0.7778,
+          "f1_score": 0.506,
+          "support": 27,
+          "risk_tier": "Low Risk (Benign)"
+        }
+      }
+    }
+  }
+}

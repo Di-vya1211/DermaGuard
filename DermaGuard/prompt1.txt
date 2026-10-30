@@ -1,0 +1,17 @@
+Project: "Agentic DermaGuard", HAM10000 skin lesion screening. 7 classes: akiec, bcc, bkl, df, mel, nv, vasc.
+
+Folder layout (code lives in JIIT/DermaGuard/, so ROOT = parent folder of DermaGuard; compute it with pathlib from __file__):
+- Train images: ROOT/health-training-jiit/Health/training/images/<image_id>.jpg (7,762 images, 600x450)
+- Train labels: ROOT/health-training-jiit/Health/training/metadata.csv
+- Eval images: ROOT/health-eval-jiit/Health/eval/images/<image_id>.jpg (1,942 images)
+- Eval labels: ROOT/health-eval-jiit/Health/eval/metadata.csv
+Both CSVs have columns: image_id, lesion_id, dx, age, sex, localization. dx is the class label. The training CSV is sorted by class and has 7,762 rows but only 5,815 unique lesion_id, so never split by row order. Never modify dataset files.
+
+RULES:
+1. Eval data is a development set: it is never used for training. Use the training holdout for model selection and threshold tuning; use eval for reporting and sanity checks. Pipelines must accept any image folder path as input (a hidden unlabeled set will be released later).
+2. Image-only model. Do not use age/sex/localization as inputs.
+3. Do not invent any API details.
+
+Write two files:
+1. DermaGuard/config.py: pathlib-based paths above, CLASSES list (sorted), class-to-index mapping, SEED=42, IMG_SIZE=224, BATCH_SIZE=32, EPOCHS=15, LR=3e-4, NUM_WORKERS=2, and helper functions train_image_path(image_id) and eval_image_path(image_id).
+2. DermaGuard/data.py: load the training CSV; create a holdout split (about 15%) that is BOTH stratified by dx AND grouped by lesion_id using sklearn StratifiedGroupKFold (seed 42, pick the first fold of ~7); assert zero lesion_id overlap between train and holdout; print class counts for train and holdout; a PyTorch Dataset (takes a dataframe, image path function and a transform; returns image tensor, label index, image_id); train augmentation (horizontal and vertical flips, rotation, ColorJitter, RandomResizedCrop to IMG_SIZE, ImageNet normalization); eval transform (resize to IMG_SIZE, ImageNet normalization); a function to compute class weights (inverse frequency) for weighted cross-entropy; a function to load the eval dataframe. Add a __main__ block that prints the split summary and loads one batch to confirm shapes.

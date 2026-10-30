@@ -1,0 +1,55 @@
+{
+  "summit": "Jaypee Agentic AI International Summit 2026",
+  "track": "Track 2 - Healthcare (Agentic DermaGuard)",
+  "level": 1,
+  "date": "2026-10-30",
+  "best_model": "EfficientNet-B0",
+  "validation_samples": 1942,
+  "performance_metrics": {
+    "top1_accuracy": 0.8852,
+    "balanced_accuracy": 0.8926,
+    "macro_f1": 0.7638,
+    "weighted_f1": 0.8928,
+    "malignancy_sensitivity": 0.9048,
+    "benign_specificity": 0.9405
+  },
+  "per_class_f1": {
+    "akiec": 0.7037,
+    "bcc": 0.7982,
+    "bkl": 0.865,
+    "df": 0.5556,
+    "mel": 0.8505,
+    "nv": 0.9319,
+    "vasc": 0.642
+  },
+  "all_models_compared": [
+    {
+      "name": "EfficientNet-B0",
+      "accuracy": 0.8852,
+      "balanced_acc": 0.8926,
+      "macro_f1": 0.7638,
+      "params_m": 5.3
+    },
+    {
+      "name": "ResNet-50",
+      "accuracy": 0.8625,
+      "balanced_acc": 0.8638,
+      "macro_f1": 0.7246,
+      "params_m": 25.6
+    },
+    {
+      "name": "ConvNeXt-Tiny",
+      "accuracy": 0.8759,
+      "balanced_acc": 0.8598,
+      "macro_f1": 0.7401,
+      "params_m": 28.6
+    },
+    {
+      "name": "MobileNet-V3-Large",
+      "accuracy": 0.846,
+      "balanced_acc": 0.8354,
+      "macro_f1": 0.7025,
+      "params_m": 5.4
+    }
+  ]
+}

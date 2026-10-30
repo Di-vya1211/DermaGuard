@@ -1,0 +1,29 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Large datasets & archive zip files (exceeds GitHub limits)
+small_data.zip
+small_data/
+health-training-jiit/Health/training/images/
+health-eval-jiit/Health/eval/images/
+*.zip
+*.tar.gz
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Output temporary plots
+outputs/plots/

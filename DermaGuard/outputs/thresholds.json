@@ -1,0 +1,91 @@
+{
+  "n_images_used": 1500,
+  "source": "training images only",
+  "thresholds": {
+    "blur_min": 22.54594066824417,
+    "blur_poor": 15.957313753008092,
+    "brightness_low": 123.73387703703703,
+    "brightness_high": 186.86099574074072,
+    "contrast_min": 13.481969115152516,
+    "glare_max": 0.0035281481481481427,
+    "dark_corner_max": 0.13296849087893858,
+    "occlusion_max": 0.006030925925925925,
+    "hair_max": 0.3675418518518518
+  },
+  "justification": {
+    "blur_min": "5th percentile of Laplacian variance on training images: sharper than the blurriest 5%.",
+    "blur_poor": "1st percentile of Laplacian variance: below this the image is among the blurriest 1% (unusable).",
+    "brightness_low": "5th percentile of mean gray level: darker than 95% of training images.",
+    "brightness_high": "95th percentile of mean gray level: brighter than 95% of training images.",
+    "contrast_min": "5th percentile of gray std-dev: flatter than 95% of training images.",
+    "glare_max": "95th percentile of fraction of bright low-saturation pixels (specular glare).",
+    "dark_corner_max": "95th percentile of dark pixels in the 4 corner patches (vignette / dermoscope edge).",
+    "occlusion_max": "95th percentile of pixels that are almost pure black or pure white.",
+    "hair_max": "95th percentile of thin dark line pixels found by blackhat filter (hair / ruler)."
+  },
+  "distribution": {
+    "blur": {
+      "min": 7.8763636235802466,
+      "p1": 15.957313753008092,
+      "p5": 22.54594066824417,
+      "median": 50.798182771467765,
+      "p95": 201.12882608086753,
+      "p99": 425.1805784699693,
+      "max": 2832.0921054161727
+    },
+    "brightness": {
+      "min": 81.29831481481482,
+      "p1": 112.95526637037037,
+      "p5": 123.73387703703703,
+      "median": 155.57308333333333,
+      "p95": 186.86099574074072,
+      "p99": 199.65771692592594,
+      "max": 220.0768
+    },
+    "contrast": {
+      "min": 6.270197324819001,
+      "p1": 10.507976264381409,
+      "p5": 13.481969115152516,
+      "median": 26.028272823911387,
+      "p95": 49.497271326519986,
+      "p99": 65.0118633081272,
+      "max": 76.27300058365394
+    },
+    "glare_ratio": {
+      "min": 0.0,
+      "p1": 0.0,
+      "p5": 0.0,
+      "median": 0.0,
+      "p95": 0.0035281481481481427,
+      "p99": 0.1996660740740739,
+      "max": 0.7059555555555556
+    },
+    "dark_corner_ratio": {
+      "min": 0.0,
+      "p1": 0.0,
+      "p5": 0.0,
+      "median": 0.0,
+      "p95": 0.13296849087893858,
+      "p99": 0.6191198175787727,
+      "max": 0.7947761194029851
+    },
+    "occlusion_ratio": {
+      "min": 0.0,
+      "p1": 0.0,
+      "p5": 0.0,
+      "median": 0.0,
+      "p95": 0.006030925925925925,
+      "p99": 0.055705037037037025,
+      "max": 0.20554074074074075
+    },
+    "hair_ratio": {
+      "min": 0.0035074074074074074,
+      "p1": 0.014561481481481483,
+      "p5": 0.030184444444444444,
+      "median": 0.1259425925925926,
+      "p95": 0.3675418518518518,
+      "p99": 0.5131405555555556,
+      "max": 0.7992555555555556
+    }
+  }
+}
