@@ -1099,6 +1099,11 @@ HTML_PAGE = """<!DOCTYPE html>
 
     <!-- Main View -->
     <main>
+        <!-- Top Brand Identity Banner -->
+        <div style="margin-bottom: 18px;">
+            <img id="top-brand-banner" src="/banner_dark.png" alt="Agentic DermaGuard" style="width: 100%; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.25);" onerror="this.onerror=null; this.src='/banner.png';">
+        </div>
+
         <!-- Hero Header -->
         <div class="hero-banner">
             <div class="hero-badge">Jaypee Agentic AI International Summit 2026 • Multi-Agent Screening Platform</div>
@@ -1300,6 +1305,10 @@ HTML_PAGE = """<!DOCTYPE html>
             } else {
                 document.body.classList.add('theme-light');
                 document.getElementById('btn-light').classList.add('active');
+            }
+            const banner = document.getElementById('top-brand-banner');
+            if (banner) {
+                banner.src = (mode === 'light') ? '/banner_light.png' : '/banner_dark.png';
             }
             localStorage.setItem('dermaguard_theme', mode);
         }
@@ -1951,6 +1960,22 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+
+        if path in ["/banner.png", "/banner_dark.png", "/banner_light.png"]:
+            fname = path.lstrip("/")
+            p = os.path.join(os.path.dirname(__file__), "..", fname)
+            if not os.path.exists(p):
+                p = os.path.join(os.path.dirname(__file__), "..", "DermaGuard", fname)
+            if os.path.exists(p):
+                with open(p, "rb") as f:
+                    b_data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(b_data)))
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(b_data)
+                return
 
         if path in ["/api/download-csv", "/download-csv"]:
             if DERMAGUARD_URL:

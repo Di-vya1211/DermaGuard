@@ -16,6 +16,7 @@ small_data.zip
 small_data/
 health-training-jiit/Health/training/images/
 health-eval-jiit/Health/eval/images/
+health-hidden/
 *.zip
 *.tar.gz
 

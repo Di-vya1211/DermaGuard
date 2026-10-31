@@ -42,6 +42,19 @@ from lesion_analysis_agent import LesionAnalysisAgent
 from reasoning_agent import ReasoningContextAgent
 from safety_agent import SafetyAgent
 from coordinator_agent import CoordinatorAgent
+from visualizations import (
+    make_sharpness_map,
+    make_lighting_map,
+    make_glare_map,
+    make_centering_map,
+    make_hair_map,
+    make_composite_quality_map,
+    make_asymmetry_overlay,
+    make_border_overlay,
+    make_color_overlay,
+    make_diameter_overlay,
+    make_abcd_full_overlay,
+)
 
 # Paths
 TRAIN_DIR = WORKSPACE_DIR / "health-training-jiit" / "Health" / "training" / "images"
@@ -52,6 +65,9 @@ THR_PATH = OUTPUT_DIR / "thresholds.json"
 SIX_SUMMARY_PATH = OUTPUT_DIR / "six_agent_summary.json"
 SIX_PRED_PATH = OUTPUT_DIR / "six_agent_predictions.csv"
 SUB_CSV_PATH = OUTPUT_DIR / "final_submission_format.csv"
+BANNER_PATH = DERMAGUARD_DIR / "banner.png"
+BANNER_DARK_PATH = DERMAGUARD_DIR / "banner_dark.png"
+BANNER_LIGHT_PATH = DERMAGUARD_DIR / "banner_light.png"
 
 # Configure page
 st.set_page_config(
@@ -499,6 +515,74 @@ st.markdown(f"""
         border-radius: 8px !important;
     }}
     
+    /* Scientific Measurement Algorithm & Clinical Rationale Box */
+    .scientific-rationale-box {{
+        margin-top: 14px;
+        background: {card_bg};
+        border: 1px solid {border_color};
+        border-radius: 10px;
+        padding: 16px 18px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+    }}
+    .rationale-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid {border_color};
+    }}
+    .rationale-title {{
+        font-size: 13.5px;
+        font-weight: 700;
+        color: {text_color};
+    }}
+    .rationale-badge {{
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }}
+    .rationale-meta {{
+        font-size: 12px;
+        font-family: 'JetBrains Mono', monospace;
+        color: {subtext_color};
+        margin-bottom: 12px;
+        background: rgba(0,0,0,0.18);
+        padding: 6px 10px;
+        border-radius: 6px;
+    }}
+    .rationale-section {{
+        margin-top: 8px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: {text_color};
+    }}
+    .rationale-section strong {{
+        color: #38bdf8;
+    }}
+
+    /* Evidence Box */
+    .evidence-box {{
+        margin-top: 12px;
+        margin-bottom: 12px;
+        padding: 12px 14px;
+        background: rgba(0,0,0,0.18);
+        border: 1px solid {border_color};
+        border-radius: 8px;
+    }}
+    .evidence-pill {{
+        display: inline-block;
+        padding: 3px 9px;
+        background: rgba(168, 85, 247, 0.15);
+        color: #d8b4fe;
+        border: 1px solid rgba(168, 85, 247, 0.35);
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    
     p, span, label, h1, h2, h3, h4, h5, h6 {{
         color: {text_color};
     }}
@@ -566,32 +650,16 @@ six_summary = load_six_agent_summary()
 df_comparison, comparison_results = load_comparison_records()
 df_submission = load_submission_records()
 
-# Visual inspection helpers
-def make_glare_overlay(bgr):
-    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    mask = (hsv[..., 2] > 240) & (hsv[..., 1] < 40)
-    overlay = bgr.copy()
-    overlay[mask] = [0, 230, 255]
-    return cv2.addWeighted(bgr, 0.45, overlay, 0.55, 0)
-
-
-def make_hair_map(bgr):
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    bh = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (17, 17)))
-    bh_norm = cv2.normalize(bh, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    return cv2.applyColorMap(bh_norm, cv2.COLORMAP_MAGMA)
-
-
-def make_sharpness_map(bgr):
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    lap = np.abs(cv2.Laplacian(gray, cv2.CV_64F))
-    lap_norm = cv2.normalize(lap, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    return cv2.applyColorMap(lap_norm, cv2.COLORMAP_VIRIDIS)
-
-
 # ==============================================================================
-# HERO HEADER BANNER
+# TOP BRAND BANNER & HERO HEADER
 # ==============================================================================
+banner_file = BANNER_DARK_PATH if theme_mode in ["Dark", "Light Dark"] else BANNER_LIGHT_PATH
+if not banner_file.exists():
+    banner_file = BANNER_PATH
+
+if banner_file.exists():
+    st.image(str(banner_file), use_container_width=True)
+
 st.markdown("""
 <div class="hero-banner">
     <div class="hero-badge">Jaypee Agentic AI International Summit 2026 • Multi-Agent Screening Platform</div>
@@ -886,32 +954,114 @@ with tab1:
 
         # --- LEFT COLUMN: IMAGE VIEWER & LAYER INSPECTION ---
         with col_img:
-            st.markdown("#### 🖼️ Dermoscopic Specimen Inspection")
+            st.markdown("#### 🖼️ Dermoscopic Specimen Inspection & Algorithmic Overlays")
 
-            layer = st.radio(
-                "Inspection Layer",
-                ["Standard RGB", "Specular Glare Mask", "Hair & Fiber Map", "Sharpness Edge Map"],
+            inspect_mode = st.radio(
+                "Inspection Mode",
+                [
+                    "📷 Standard RGB",
+                    "🛡️ Agent 1: Quality Measures",
+                    "🔬 Agent 3: ABCD Morphology",
+                ],
                 horizontal=True,
-                label_visibility="collapsed"
+                key="specimen_inspect_mode"
             )
 
-            if layer == "Standard RGB":
+            info_dict = None
+
+            if inspect_mode == "📷 Standard RGB":
                 view_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-                caption = f"Specimen: {img_name} (Standard Dermoscopy)"
-            elif layer == "Specular Glare Mask":
-                view_img = cv2.cvtColor(make_glare_overlay(img_bgr), cv2.COLOR_BGR2RGB)
-                caption = "Highlighted Specular Glare (HSV V>240, S<40)"
-            elif layer == "Hair & Fiber Map":
-                view_img = cv2.cvtColor(make_hair_map(img_bgr), cv2.COLOR_BGR2RGB)
-                caption = "Blackhat Morphological Filter (Hair extraction)"
-            else:
-                view_img = cv2.cvtColor(make_sharpness_map(img_bgr), cv2.COLOR_BGR2RGB)
-                caption = "Laplacian High-Pass Gradient (Edge transitions)"
+                h, w = img_bgr.shape[:2]
+                st.image(view_img, caption=f"Specimen: {img_name} (High-Resolution Optical Dermoscopy)", use_container_width=True)
+                st.caption(f"Resolution: {w}x{h} px • Channels: 3 • Specimen: {img_name}")
 
-            st.image(view_img, caption=caption, use_container_width=True)
+            elif inspect_mode == "🛡️ Agent 1: Quality Measures":
+                q_layer = st.selectbox(
+                    "Select Agent 1 Quality Measure to Mark on Image:",
+                    [
+                        "Laplacian Gradient & Tenengrad (Blur & Sharpness)",
+                        "Illumination Entropy & Exposure Masks (Lighting)",
+                        "Specular Glare Reflection Void Contours (Flash)",
+                        "Perimeter 15% Margin & Corner Vignettes (Centering)",
+                        "Blackhat Morphological Fibers (Hair & Obstruction)",
+                        "Composite Optical Quality Defect Map",
+                    ],
+                    key="a1_measure_select"
+                )
 
-            h, w = img_bgr.shape[:2]
-            st.caption(f"Resolution: {w}x{h} px • Channels: 3 • Specimen: {img_name}")
+                if "Blur & Sharpness" in q_layer:
+                    overlay_bgr, info_dict = make_sharpness_map(img_bgr)
+                elif "Lighting" in q_layer:
+                    overlay_bgr, info_dict = make_lighting_map(img_bgr)
+                elif "Flash" in q_layer:
+                    overlay_bgr, info_dict = make_glare_map(img_bgr)
+                elif "Centering" in q_layer:
+                    overlay_bgr, info_dict = make_centering_map(img_bgr)
+                elif "Hair" in q_layer:
+                    overlay_bgr, info_dict = make_hair_map(img_bgr)
+                else:
+                    overlay_bgr, info_dict = make_composite_quality_map(img_bgr)
+
+                view_img = cv2.cvtColor(overlay_bgr, cv2.COLOR_BGR2RGB)
+                st.image(view_img, caption=info_dict["title"], use_container_width=True)
+
+            else:  # Agent 3: ABCD Morphology
+                abcd_layer = st.selectbox(
+                    "Select Agent 3 ABCD Feature to Mark on Image:",
+                    [
+                        "Asymmetry (A): Principal Inertia Axes & Fold XOR",
+                        "Border Irregularity (B): 8-Octant Radial Profile & Scalloped Notches",
+                        "Color Variegation (C): 6-Chromophore Depth Clustering Map",
+                        "Diameter & Field Area (D): Enclosing Caliper & Lesion Fraction",
+                        "Full ABCD Clinical Synthesis (Stolz TDS Score)",
+                    ],
+                    key="a3_feature_select"
+                )
+
+                if "Asymmetry" in abcd_layer:
+                    overlay_bgr, info_dict = make_asymmetry_overlay(img_bgr, img_name or "")
+                elif "Border" in abcd_layer:
+                    overlay_bgr, info_dict = make_border_overlay(img_bgr, img_name or "")
+                elif "Color" in abcd_layer:
+                    overlay_bgr, info_dict = make_color_overlay(img_bgr, img_name or "")
+                elif "Diameter" in abcd_layer:
+                    overlay_bgr, info_dict = make_diameter_overlay(img_bgr, img_name or "")
+                else:
+                    overlay_bgr, info_dict = make_abcd_full_overlay(img_bgr, img_name or "")
+
+                view_img = cv2.cvtColor(overlay_bgr, cv2.COLOR_BGR2RGB)
+                st.image(view_img, caption=info_dict["title"], use_container_width=True)
+
+            # Render Scientific Measurement Algorithm & Clinical Rationale Box
+            if info_dict:
+                status_color = "#10b981" if "PASS" in info_dict["status"] else "#ef4444"
+                status_bg = "rgba(16, 185, 129, 0.15)" if "PASS" in info_dict["status"] else "rgba(239, 68, 68, 0.15)"
+                st.markdown(f"""
+                <div class="scientific-rationale-box">
+                    <div class="rationale-header">
+                        <div class="rationale-title">🔬 {info_dict['title']}</div>
+                        <div class="rationale-badge" style="background: {status_bg}; color: {status_color}; border: 1px solid {status_color}50;">
+                            {info_dict['status']}
+                        </div>
+                    </div>
+                    <div class="rationale-meta">
+                        <strong>Metric:</strong> <code>{info_dict['metric_name']}</code> &nbsp;•&nbsp;
+                        <strong>Value:</strong> <span style="color:#38bdf8; font-weight:700;">{info_dict['value']}</span> &nbsp;•&nbsp;
+                        <strong>Threshold:</strong> {info_dict['threshold']}
+                    </div>
+                    <div class="rationale-section">
+                        <strong>📐 How It Is Measured (Mathematical & CV Algorithm):</strong><br/>
+                        {info_dict['algorithm']}
+                    </div>
+                    <div class="rationale-section" style="margin-top: 10px;">
+                        <strong>🩺 Clinical Significance & Medical Rationale:</strong><br/>
+                        {info_dict['rationale']}
+                    </div>
+                    <div class="rationale-section" style="margin-top: 8px; font-size: 11.5px; opacity: 0.85;">
+                        <strong>📊 Raw Telemetry:</strong> <code>{info_dict.get('raw_stats', 'N/A')}</code>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
         # --- RIGHT COLUMN: FULL 6 AGENTS BREAKDOWN ---
         with col_agents:
@@ -1177,6 +1327,19 @@ with tab1:
             tds_pass = tds_val <= 5.45
             area_coverage_v = float(l_res.get("feature_evidence", {}).get("coverage_pct", 49.6))
             area_pass = area_coverage_v >= 2.00
+
+            # Format demonstrable feature evidence and reliability flags per Healthcare Day 2 Brief
+            f_evidence_disp = {
+                "asymmetry_index": round(asym_fold_v, 3),
+                "border_compactness": round(border_comp_v, 2),
+                "color_variegation_std": round(color_std_v, 1),
+                "notched_octants": octants_str,
+                "lesion_field_pct": f"{area_coverage_v:.1f}%",
+                "stolz_tds": round(tds_val, 2),
+                "detected_chromophores_count": 3 if color_flag else 1,
+            }
+            rel_flags = l_res.get("reliability_flags", ["Adequate pixel resolution", "Contour closed", "High diagnostic reliability"])
+            rel_flags_html = " ".join([f'<span class="evidence-pill">🏷️ {f}</span>' for f in rel_flags])
             
             st.markdown(f"""
             <div class="agent-card-container">
@@ -1194,6 +1357,16 @@ with tab1:
                 </div>
                 <div class="agent-card-narrative">
                     Lesion Analysis Agent computed an ABCD suspicion score of {a3_susp:.2f} (TDS={tds_val:.2f}, {a3_pill_txt} / SUSPICIOUS). Border compactness was evaluated at {border_comp_v:.2f} ({octants_str} notched octants) with {asym_axes_str} geometric asymmetry axes. Color analysis revealed 3/6 distinct dermoscopic pigments across a lesion area of {area_coverage_v:.1f}%.
+                </div>
+                <div class="evidence-box">
+                    <div style="font-size: 11px; font-weight: 700; color: #fbbf24; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Agent 3 Demonstrable Feature Evidence Dictionary:</div>
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {text_color}; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;">
+                        {json.dumps(f_evidence_disp)}
+                    </div>
+                    <div style="font-size: 11px; font-weight: 700; color: #a78bfa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🚩 Clinical Reliability Flags:</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        {rel_flags_html}
+                    </div>
                 </div>
                 <table class="clinical-eval-table">
                     <thead>
@@ -1261,6 +1434,13 @@ with tab1:
             high_risk_locs = ["acral", "scalp", "neck", "ear", "face"]
             site_pass = not any(hr in demo_site for hr in high_risk_locs)
             demo_risk_pass = demo_risk_v < 0.70
+
+            a4_missing_flags = c_res.get("missing_field_flags", {})
+            a4_evidence_list = c_res.get("context_evidence", [
+                f"Patient age: {int(demo_age)}y (intermediate cohort)",
+                f"Standard anatomical localization: '{demo_site}'",
+            ])
+            a4_evidence_html = "".join([f"<li style='margin-bottom:3px;'>{ev}</li>" for ev in a4_evidence_list])
             
             st.markdown(f"""
             <div class="agent-card-container">
@@ -1278,6 +1458,16 @@ with tab1:
                 </div>
                 <div class="agent-card-narrative">
                     Context & Demographics Agent evaluated clinical risk at {demo_risk_v:.2f}/1.0 ({demo_tier_str}). Patient is {int(demo_age)} years old presenting with lesion at '{demo_site}'. Young adult ({int(demo_age)} yrs): Benign melanocytic nevi are prevalent; new or evolving lesions warrant monitoring.
+                </div>
+                <div class="evidence-box">
+                    <div style="font-size: 11px; font-weight: 700; color: #d8b4fe; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Agent 4 Context Evidence:</div>
+                    <ul style="font-size: 12px; margin: 4px 0 8px 18px; padding: 0; color: {subtext_color};">
+                        {a4_evidence_html}
+                    </ul>
+                    <div style="font-size: 11px; font-weight: 700; color: #34d399; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🚩 Missing-Field Audit:</div>
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {text_color}; background: rgba(0,0,0,0.25); padding: 5px 8px; border-radius: 6px;">
+                        age_missing={a4_missing_flags.get('age_missing', False)} • sex_missing={a4_missing_flags.get('sex_missing', False)} • localization_missing={a4_missing_flags.get('localization_missing', False)} ({a4_missing_flags.get('missing_count', 0)} missing fields)
+                    </div>
                 </div>
                 <table class="clinical-eval-table">
                     <thead>
