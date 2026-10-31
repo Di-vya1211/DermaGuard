@@ -586,12 +586,16 @@ HTML_PAGE = """<!DOCTYPE html>
         </div>
 
         <div>
-            <h3 style="font-size: 14px; margin-bottom: 8px;">🎛️ Representative Clinical Cases</h3>
-            <button class="case-btn active" onclick="loadCase('case1', this)">⭐ Case 1: Benign Nevus (AUTO_TRIAGE)</button>
-            <button class="case-btn" onclick="loadCase('case2', this)">⭐ Case 2: Melanoma (REFER)</button>
-            <button class="case-btn" onclick="loadCase('case3', this)">⭐ Case 3: Basal Cell Carcinoma (REFER)</button>
-            <button class="case-btn" onclick="loadCase('case4', this)">⭐ Case 4: Nevus + Border Conflict (VETO)</button>
-            <button class="case-btn" onclick="loadCase('case5', this)">⭐ Case 5: Specular Glare (RE_IMAGE)</button>
+            <h3 style="font-size: 13px; margin-bottom: 6px;">🎯 Select Decision System</h3>
+            <div class="theme-toggle-group" style="margin-bottom: 12px;">
+                <button class="theme-btn active" id="sys-all" onclick="filterBySystem('ALL')">All</button>
+                <button class="theme-btn" id="sys-auto" onclick="filterBySystem('AUTO_TRIAGE')">🟢 Auto</button>
+                <button class="theme-btn" id="sys-refer" onclick="filterBySystem('REFER')">🔴 Refer</button>
+                <button class="theme-btn" id="sys-reimage" onclick="filterBySystem('RE_IMAGE')">🟡 Re-Image</button>
+            </div>
+
+            <h3 style="font-size: 13px; margin-bottom: 6px;">🎛️ Representative Clinical Cases</h3>
+            <div id="case-btn-list"></div>
         </div>
 
         <div style="margin-top: auto; font-size: 11px; color: var(--subtext-color); line-height: 1.4;">
@@ -769,6 +773,49 @@ HTML_PAGE = """<!DOCTYPE html>
             localStorage.setItem('dermaguard_theme', mode);
         }
 
+        let activeSystem = 'ALL';
+        let currentCaseKey = 'case1';
+
+        function renderCaseButtons() {
+            let html = '';
+            for (let [k, c] of Object.entries(CASES)) {
+                if (activeSystem !== 'ALL' && c.decision !== activeSystem) continue;
+                const isActive = (k === currentCaseKey) ? 'active' : '';
+                html += `<button class="case-btn ${isActive}" onclick="loadCase('${k}', this)">${c.name}</button>`;
+            }
+            document.getElementById('case-btn-list').innerHTML = html;
+        }
+
+        function filterBySystem(sys) {
+            activeSystem = sys;
+            document.querySelectorAll('#sys-all, #sys-auto, #sys-refer, #sys-reimage').forEach(b => b.classList.remove('active'));
+            if (sys === 'ALL') document.getElementById('sys-all').classList.add('active');
+            else if (sys === 'AUTO_TRIAGE') document.getElementById('sys-auto').classList.add('active');
+            else if (sys === 'REFER') document.getElementById('sys-refer').classList.add('active');
+            else if (sys === 'RE_IMAGE') document.getElementById('sys-reimage').classList.add('active');
+
+            // Find first matching case and load it
+            for (let [k, c] of Object.entries(CASES)) {
+                if (sys === 'ALL' || c.decision === sys) {
+                    currentCaseKey = k;
+                    loadCase(k, null);
+                    break;
+                }
+            }
+            renderCaseButtons();
+            renderPreviewTable();
+        }
+
+        function renderPreviewTable() {
+            let tb = '';
+            SAMPLE_ROWS.forEach(r => {
+                if (activeSystem !== 'ALL' && r.decision !== activeSystem) return;
+                const col = r.decision === 'AUTO_TRIAGE' ? '#10b981' : (r.decision === 'REFER' ? '#ef4444' : '#eab308');
+                tb += `<tr><td><code>${r.image_id}</code></td><td><strong>${r.prediction}</strong></td><td><span style="font-weight:700; color:${col}">${r.decision}</span></td></tr>`;
+            });
+            document.getElementById('preview-tbody').innerHTML = tb;
+        }
+
         function openTab(tabId, el) {
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -777,6 +824,7 @@ HTML_PAGE = """<!DOCTYPE html>
         }
 
         function loadCase(key, btnEl) {
+            currentCaseKey = key;
             if (btnEl) {
                 document.querySelectorAll('.case-btn').forEach(b => b.classList.remove('active'));
                 btnEl.classList.add('active');
@@ -870,18 +918,13 @@ HTML_PAGE = """<!DOCTYPE html>
             document.getElementById('agent-cards').innerHTML = agentsHtml;
         }
 
-        // Render preview table
-        let tb = '';
-        SAMPLE_ROWS.forEach(r => {
-            tb += `<tr><td><code>${r.image_id}</code></td><td><strong>${r.prediction}</strong></td><td><span style="font-weight:700; color:${r.decision === 'AUTO_TRIAGE' ? '#10b981' : (r.decision === 'REFER' ? '#38bdf8' : '#eab308')}">${r.decision}</span></td></tr>`;
-        });
-        document.getElementById('preview-tbody').innerHTML = tb;
-
         // Restore saved theme or default
         const savedTheme = localStorage.getItem('dermaguard_theme') || 'dark';
         setTheme(savedTheme);
 
-        // Initial case load
+        // Initial setup
+        renderCaseButtons();
+        renderPreviewTable();
         loadCase('case1', null);
     </script>
 </body>
