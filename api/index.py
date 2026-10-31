@@ -949,6 +949,32 @@ def find_specimen_image(file_id: str) -> Optional[np.ndarray]:
     return None
 
 
+RECORDS_CSV_PATH = WORKSPACE_DIR / "health-hidden" / "Health" / "hidden" / "records.csv"
+HIDDEN_IMAGES_DIR = WORKSPACE_DIR / "health-hidden" / "Health" / "hidden" / "images"
+OFFICIAL_SUBMISSION_CSV = WORKSPACE_DIR / "health_submission.csv"
+DETAILED_AUDIT_CSV = OUTPUT_DIR / "hidden_test_six_agent_detailed.csv"
+
+records_lookup = {}
+if RECORDS_CSV_PATH.exists():
+    try:
+        _rdf = pd.read_csv(RECORDS_CSV_PATH)
+        for _, row in _rdf.iterrows():
+            iid = str(row["image_id"]).strip()
+            records_lookup[iid] = {
+                "age": int(row["age"]) if pd.notnull(row["age"]) else 50,
+                "sex": str(row["sex"]).capitalize() if pd.notnull(row["sex"]) else "Unknown",
+                "loc": str(row["localization"]).title() if pd.notnull(row["localization"]) else "Unknown",
+            }
+    except Exception:
+        pass
+
+
+def segment_lesion_mask(gray: np.ndarray) -> np.ndarray:
+    if len(gray.shape) == 3:
+        gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
+    return LesionAnalysisAgent._segment_lesion(gray)
+
+
 def make_contour_and_axes_overlay(img_bgr: np.ndarray) -> np.ndarray:
     sq = cv2.resize(img_bgr, (224, 224))
     gray = cv2.cvtColor(sq, cv2.COLOR_BGR2GRAY)
@@ -1035,22 +1061,185 @@ with tab1:
         )
         cfg = CASE_PRESETS[selected_case]
 
-        st.markdown('<div class="control-section-label">UPLOAD CUSTOM DERMOSCOPIC IMAGE</div>', unsafe_allow_html=True)
-        tab1_upload = st.file_uploader(
-            "Upload Custom Dermoscopic Image",
-            type=["jpg", "jpeg", "png", "webp"],
+        st.markdown('<div class="control-section-label">UPLOAD DERMOSCOPIC IMAGE(S) OR BATCH ZIP</div>', unsafe_allow_html=True)
+        tab1_uploads = st.file_uploader(
+            "Upload Custom Dermoscopic Image(s) or Folder ZIP",
+            type=["jpg", "jpeg", "png", "webp", "zip"],
+            accept_multiple_files=True,
             key="tab1_drag_uploader",
-            help="Click to upload or drag & drop JPG, PNG, WebP dermoscopic captures",
+            help="Upload 1 image, multiple images (select all 200), or a .zip archive of dermoscopic captures",
             label_visibility="collapsed"
         )
+
+        load_c1, load_c2 = st.columns([1.5, 1])
+        with load_c1:
+            if st.button("📂 Load 200 Hidden Images (Folder)", key="t1_load_200_btn", use_container_width=True):
+                st.session_state["t1_batch_active"] = "hidden_200"
+                st.rerun()
+        with load_c2:
+            if st.session_state.get("t1_batch_active") == "hidden_200" or tab1_uploads:
+                if st.button("✕ Reset Batch", key="t1_reset_batch_btn", use_container_width=True):
+                    st.session_state["t1_batch_active"] = None
+                    st.rerun()
+
+        # Build in-memory batch dictionary
+        batch_images = {}
+        if tab1_uploads:
+            for uf in tab1_uploads:
+                if uf.name.lower().endswith(".zip"):
+                    try:
+                        with zipfile.ZipFile(uf) as z:
+                            for zname in z.namelist():
+                                if any(zname.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+                                    with z.open(zname) as zf:
+                                        bdata = np.frombuffer(zf.read(), np.uint8)
+                                        bimg = cv2.imdecode(bdata, cv2.IMREAD_COLOR)
+                                        if bimg is not None:
+                                            stem = Path(zname).stem
+                                            batch_images[stem] = bimg
+                    except Exception as ze:
+                        st.error(f"Error reading zip: {ze}")
+                else:
+                    bdata = np.frombuffer(uf.read(), np.uint8)
+                    bimg = cv2.imdecode(bdata, cv2.IMREAD_COLOR)
+                    if bimg is not None:
+                        stem = Path(uf.name).stem
+                        batch_images[stem] = bimg
+        elif st.session_state.get("t1_batch_active") == "hidden_200":
+            if HIDDEN_IMAGES_DIR.exists():
+                h_files = sorted(list(HIDDEN_IMAGES_DIR.glob("*.jpg")) + list(HIDDEN_IMAGES_DIR.glob("*.png")))
+                for hf in h_files:
+                    bimg = cv2.imread(str(hf))
+                    if bimg is not None:
+                        batch_images[hf.stem] = bimg
+
+        is_batch_mode = len(batch_images) > 1
+
+        if is_batch_mode:
+            st.markdown(f"""<div style="background: rgba(16, 185, 129, 0.12); border: 1px solid #10b981; border-radius: 10px; padding: 12px 16px; margin: 10px 0;">
+<strong style="color: #10b981; font-size: 14px;">📦 Batch Mode Active: {len(batch_images)} Images Loaded</strong><br>
+<span style="font-size: 12.5px; opacity: 0.9;">Screening pipeline ready. You can inspect individual specimens and download official CSV below.</span>
+</div>""", unsafe_allow_html=True)
+
+            df_sub = None
+            if OFFICIAL_SUBMISSION_CSV.exists():
+                try:
+                    df_sub = pd.read_csv(OFFICIAL_SUBMISSION_CSV)
+                except Exception:
+                    df_sub = None
+
+            if df_sub is not None and len(df_sub) > 0:
+                h_auto = len(df_sub[df_sub["decision"] == "AUTO_TRIAGE"])
+                h_ref = len(df_sub[df_sub["decision"] == "REFER"])
+                h_reimg = len(df_sub[df_sub["decision"] == "RE_IMAGE"])
+
+                mc1, mc2, mc3 = st.columns(3)
+                mc1.metric("🟢 AUTO_TRIAGE", f"{h_auto}", f"{(h_auto/len(df_sub))*100:.1f}%")
+                mc2.metric("🔴 REFER", f"{h_ref}", f"{(h_ref/len(df_sub))*100:.1f}%")
+                mc3.metric("🟡 RE_IMAGE", f"{h_reimg}", f"{(h_reimg/len(df_sub))*100:.1f}%")
+
+                dl_c1, dl_c2 = st.columns([1.3, 1])
+                with dl_c1:
+                    sub_csv_bytes = df_sub.to_csv(index=False).encode("utf-8")
+                    st.download_button(
+                        f"📥 Download health_submission.csv ({len(df_sub)} rows)",
+                        data=sub_csv_bytes,
+                        file_name="health_submission.csv",
+                        mime="text/csv",
+                        type="primary",
+                        use_container_width=True,
+                        key="t1_dl_sub_csv"
+                    )
+                with dl_c2:
+                    if DETAILED_AUDIT_CSV.exists():
+                        with open(DETAILED_AUDIT_CSV, "rb") as det_f:
+                            st.download_button(
+                                "📊 Download 17-Col Audit Trail",
+                                data=det_f.read(),
+                                file_name="hidden_test_six_agent_detailed.csv",
+                                mime="text/csv",
+                                use_container_width=True,
+                                key="t1_dl_detailed_csv"
+                            )
+
+            if st.button(f"⚡ Screen All {len(batch_images)} Images (Run Pipeline)", type="secondary", use_container_width=True, key="t1_screen_batch_btn"):
+                with st.spinner(f"Running Six-Agent screening on all {len(batch_images)} specimens..."):
+                    import subprocess
+                    subprocess.run([sys.executable, str(DERMAGUARD_DIR / "run_hidden_batch.py")], check=True)
+                    st.success("✅ Batch screening complete! Submission CSV updated.")
+                    st.rerun()
+
+            sub_map = {}
+            if df_sub is not None:
+                for _, r in df_sub.iterrows():
+                    sub_map[str(r["image_id"])] = f"{r['decision']} [{r['predicted_label']}]"
+
+            spec_list = list(batch_images.keys())
+            def format_spec(iid):
+                tag = sub_map.get(iid, "")
+                return f"{iid} — {tag}" if tag else iid
+
+            selected_spec_str = st.selectbox(
+                f"🔍 Inspect Specimen from Batch (1 of {len(spec_list)}):",
+                spec_list,
+                format_func=format_spec,
+                key="t1_specimen_choice"
+            )
+            active_img_bgr = batch_images[selected_spec_str]
+            active_img_name = selected_spec_str
+
+            spec_rec = records_lookup.get(selected_spec_str, {})
+            init_age = spec_rec.get("age", 45)
+            init_sex = spec_rec.get("sex", "Unknown")
+            init_loc = spec_rec.get("loc", "Unknown")
+
+        else:
+            if len(batch_images) == 1:
+                active_img_name = list(batch_images.keys())[0]
+                active_img_bgr = batch_images[active_img_name]
+                spec_rec = records_lookup.get(active_img_name, {})
+                init_age = spec_rec.get("age", int(cfg["age"]))
+                init_sex = spec_rec.get("sex", cfg["sex"])
+                init_loc = spec_rec.get("loc", cfg["loc"])
+            elif cfg["file_id"] is not None:
+                active_img_bgr = find_specimen_image(cfg["file_id"])
+                active_img_name = cfg["file_id"]
+                init_age = int(cfg["age"])
+                init_sex = cfg["sex"]
+                init_loc = cfg["loc"]
+            elif img_bgr is not None:
+                active_img_bgr = img_bgr
+                active_img_name = img_name
+                init_age = int(cfg["age"])
+                init_sex = cfg["sex"]
+                init_loc = cfg["loc"]
+            else:
+                active_img_bgr = find_specimen_image("ISIC_0026993")
+                active_img_name = "ISIC_0026993"
+                init_age = int(cfg["age"])
+                init_sex = cfg["sex"]
+                init_loc = cfg["loc"]
+
+            if OFFICIAL_SUBMISSION_CSV.exists():
+                with st.expander("📥 Download Pre-computed 200 Hidden-Test Submission CSV", expanded=False):
+                    _sub_df = pd.read_csv(OFFICIAL_SUBMISSION_CSV)
+                    st.download_button(
+                        f"📥 Download health_submission.csv ({len(_sub_df)} records)",
+                        data=_sub_df.to_csv(index=False).encode("utf-8"),
+                        file_name="health_submission.csv",
+                        mime="text/csv",
+                        type="primary",
+                        use_container_width=True,
+                        key="t1_single_dl_sub"
+                    )
 
         st.markdown('<div class="control-section-label">PATIENT DEMOGRAPHICS (AGENT 4 CONTEXT)</div>', unsafe_allow_html=True)
         dem1, dem2, dem3 = st.columns([1, 1.2, 1.4])
         with dem1:
-            in_age = st.number_input("AGE (YEARS)", min_value=1, max_value=110, value=int(cfg["age"]), step=1, key="t1_in_age")
+            in_age = st.number_input("AGE (YEARS)", min_value=1, max_value=110, value=int(init_age), step=1, key="t1_in_age")
         with dem2:
             sex_choices = ["Female", "Male", "Unknown"]
-            s_idx = sex_choices.index(cfg["sex"]) if cfg["sex"] in sex_choices else 0
+            s_idx = sex_choices.index(init_sex) if init_sex in sex_choices else 2
             in_sex = st.selectbox("SEX", sex_choices, index=s_idx, key="t1_in_sex")
         with dem3:
             loc_choices = [
@@ -1066,7 +1255,12 @@ with tab1:
                 "Acral",
                 "Unknown"
             ]
-            l_idx = loc_choices.index(cfg["loc"]) if cfg["loc"] in loc_choices else 0
+            matched_loc = "Unknown"
+            for lc in loc_choices:
+                if str(init_loc).lower() in lc.lower():
+                    matched_loc = lc
+                    break
+            l_idx = loc_choices.index(matched_loc) if matched_loc in loc_choices else 0
             in_loc = st.selectbox("LOCALIZATION", loc_choices, index=l_idx, key="t1_in_loc")
 
         tp1, tp2 = st.columns([1.1, 2])
@@ -1083,20 +1277,6 @@ with tab1:
             )
 
         run_btn = st.button("Run Six-Agent Screening & Triage", type="primary", use_container_width=True, key="t1_run_screening_btn")
-
-        # Resolve active specimen image
-        if tab1_upload is not None:
-            active_img_bgr = cv2.imdecode(np.frombuffer(tab1_upload.read(), np.uint8), cv2.IMREAD_COLOR)
-            active_img_name = tab1_upload.name
-        elif cfg["file_id"] is not None:
-            active_img_bgr = find_specimen_image(cfg["file_id"])
-            active_img_name = cfg["file_id"]
-        elif img_bgr is not None:
-            active_img_bgr = img_bgr
-            active_img_name = img_name
-        else:
-            active_img_bgr = find_specimen_image("ISIC_0026993")
-            active_img_name = "ISIC_0026993"
 
         if active_img_bgr is not None:
             st.markdown("""<div class="contours-card-header">
