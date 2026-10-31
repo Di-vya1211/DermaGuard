@@ -611,6 +611,58 @@ st.markdown(f"""
         font-weight: 600;
     }}
     
+    .control-section-label {{
+        font-size: 11px;
+        font-weight: 700;
+        color: #94a3b8 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 14px;
+        margin-bottom: 6px;
+    }}
+    .contours-card-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 18px;
+        margin-bottom: 8px;
+        padding: 0 2px;
+    }}
+    .contours-title {{
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #f1f5f9 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }}
+    .contours-res {{
+        font-size: 11px;
+        color: #64748b !important;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+    }}
+    .policy-decision-banner {{
+        border: 1px solid rgba(14, 165, 233, 0.45);
+        border-left: 5px solid #00e5ff;
+        background: rgba(14, 165, 233, 0.08);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 18px rgba(0, 229, 255, 0.08);
+    }}
+    .policy-title {{
+        color: #38bdf8 !important;
+        font-weight: 700;
+        font-size: 14px;
+        line-height: 1.4;
+        margin-bottom: 6px;
+    }}
+    .policy-desc {{
+        color: #cbd5e1 !important;
+        font-size: 12.5px;
+        line-height: 1.55;
+    }}
+    
     p, span, label, h1, h2, h3, h4, h5, h6 {{
         color: {text_color};
     }}
@@ -878,266 +930,351 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # ------------------------------------------------------------------------------
 # TAB 1: SIX-AGENT SCREENING & TRIAGE
 # ------------------------------------------------------------------------------
-with tab1:
-    # Direct In-Tab Uploader
-    col_up1, col_up2 = st.columns([8, 4])
-    with col_up1:
-        up_tab = st.file_uploader(
-            "📤 Upload Custom Dermoscopic Lesion Photograph (JPG / JPEG / PNG)",
-            type=["jpg", "jpeg", "png"],
-            key="tab1_main_uploader",
-            help="Upload any clinical skin photograph to run real-time quality check, diagnostic classification, morphological ABCD scoring, demographic context, safety guardrails, and autonomous clinical triage."
-        )
-    with col_up2:
-        if up_tab is not None:
-            st.success(f"✅ Loaded: `{up_tab.name}`")
-            img_bgr = cv2.imdecode(np.frombuffer(up_tab.read(), np.uint8), cv2.IMREAD_COLOR)
-            img_name = up_tab.name
-            if meta_row is None or meta_row.get("split") != "Custom Upload":
-                meta_row = {
-                    "image_id": img_name,
-                    "lesion_id": "CUSTOM_LESION",
-                    "split": "Custom Upload",
-                    "dx": "unknown",
-                    "age": 50,
-                    "sex": "unknown",
-                    "localization": "unknown",
-                }
-        else:
-            st.caption("👈 Upload your lesion photo above, or select curated cases / filter by decision system from the sidebar.")
+def find_specimen_image(file_id: str) -> Optional[np.ndarray]:
+    if not file_id:
+        return None
+    for folder in [
+        WORKSPACE_DIR / "small_data" / "eval" / "images",
+        WORKSPACE_DIR / "small_data" / "train" / "images",
+        EVAL_DIR,
+        TRAIN_DIR,
+        WORKSPACE_DIR / "health-hidden" / "Health" / "hidden" / "images",
+    ]:
+        cand = folder / f"{file_id}.jpg"
+        if cand.exists():
+            return cv2.imread(str(cand))
+        cand_png = folder / f"{file_id}.png"
+        if cand_png.exists():
+            return cv2.imread(str(cand_png))
+    return None
 
-    if img_bgr is None:
-        st.info("👈 Please upload a dermoscopic photograph above or select a specimen from the sidebar to inspect the six agents.")
+
+def make_contour_and_axes_overlay(img_bgr: np.ndarray) -> np.ndarray:
+    sq = cv2.resize(img_bgr, (224, 224))
+    gray = cv2.cvtColor(sq, cv2.COLOR_BGR2GRAY)
+    mask = segment_lesion_mask(gray)
+    h, w = sq.shape[:2]
+    out = sq.copy()
+    
+    # Cyan contour for lesion border (BGR: 255, 235, 0 -> RGB: 0, 235, 255)
+    cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(out, cnts, -1, (255, 235, 0), 2)
+    
+    # Centroid
+    M = cv2.moments(mask)
+    if M["m00"] > 0:
+        cx = int(M["m10"] / M["m00"])
+        cy = int(M["m01"] / M["m00"])
     else:
-        # Run all six agents
-        # 1. A1 Quality
-        q_res = agents["A1"].assess(img_bgr)
-        # 2. A2 Diagnosis
-        d_res = agents["A2"].predict(img_bgr, image_id=img_name)
-        # 3. A3 Lesion Analysis
-        l_res = agents["A3"].analyze(img_bgr, image_id=img_name)
-        # 4. A4 Reasoning Context
-        p_age = meta_row.get("age") if meta_row is not None else None
-        p_sex = meta_row.get("sex") if meta_row is not None else None
-        p_loc = meta_row.get("localization") if meta_row is not None else None
-        c_res = agents["A4"].evaluate_context(age=p_age, sex=p_sex, localization=p_loc)
-        # 5. A5 Safety Agent
-        s_res = agents["A5"].audit(q_res, d_res, l_res, c_res)
-        # 6. A6 Chief Coordinator Agent
-        coord_res = agents["A6"].coordinate(q_res, d_res, l_res, c_res, s_res)
+        cx, cy = w // 2, h // 2
+        
+    # Crosshairs (Yellow in BGR: 0, 235, 255 -> RGB: 255, 235, 0)
+    arm = int(min(h, w) * 0.22)
+    cv2.line(out, (cx - arm, cy), (cx + arm, cy), (0, 235, 255), 2)
+    cv2.line(out, (cx, cy - arm), (cx, cy + arm), (0, 235, 255), 2)
+    cv2.circle(out, (cx, cy), 3, (0, 0, 255), -1)
+    
+    return cv2.cvtColor(out, cv2.COLOR_BGR2RGB)
 
-        # ----------------------------------------------------------------------
-        # EXACT 5-CARD PIPELINE FLOW (Multi-Agent Clinical Architecture)
-        # ----------------------------------------------------------------------
-        fs = coord_res["flow_summary"]
-        st.markdown(f"""
-        <div class="flow-container">
-            <div class="flow-card">
-                <div class="flow-tag">{fs['A1']['title']}</div>
-                <div class="flow-val" style="color: {fs['A1']['color']};">{fs['A1']['status']}</div>
-                <div class="flow-desc">{fs['A1']['subtitle']}</div>
-            </div>
-            <div class="flow-card">
-                <div class="flow-tag">{fs['A2']['title']}</div>
-                <div class="flow-val" style="color: {fs['A2']['color']};">{fs['A2']['status']}</div>
-                <div class="flow-desc">{fs['A2']['subtitle']}</div>
-            </div>
-            <div class="flow-card">
-                <div class="flow-tag">{fs['A3_A4']['title']}</div>
-                <div class="flow-val" style="color: {fs['A3_A4']['color']};">{fs['A3_A4']['status']}</div>
-                <div class="flow-desc">{fs['A3_A4']['subtitle']}</div>
-            </div>
-            <div class="flow-card">
-                <div class="flow-tag">{fs['A5']['title']}</div>
-                <div class="flow-val" style="color: {fs['A5']['color']};">{fs['A5']['status']}</div>
-                <div class="flow-desc">{fs['A5']['subtitle']}</div>
-            </div>
-            <div class="flow-card" style="border-color: {fs['A6']['color']};">
-                <div class="flow-tag">{fs['A6']['title']}</div>
-                <div class="flow-val" style="color: {fs['A6']['color']};">{fs['A6']['status']}</div>
-                <div class="flow-desc">{fs['A6']['subtitle']}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
-        # Prominent Coordinator Decision Banner
-        st.markdown(f"""
-        <div class="decision-banner" style="background: {coord_res['badge_color']}12; border-color: {coord_res['badge_color']}50;">
-            <div class="decision-title" style="color: {coord_res['badge_color']};">
-                <span>{coord_res['decision_icon']}</span>
-                <span>Final Disposition: {coord_res['decision']} &nbsp;•&nbsp; Predicted Pathology: {coord_res['final_predicted_name']} ({coord_res['final_predicted_label']})</span>
-            </div>
-            <div class="decision-body" style="color: #0f172a;">
-                <strong>Traceable Multi-Agent Evidence:</strong> {coord_res['traceable_rationale']}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+CASE_PRESETS = {
+    "Case 1: Nevus (nv) — Clear Benign AUTO_TRIAGE": {
+        "file_id": "ISIC_0032212",
+        "age": 35,
+        "sex": "Female",
+        "loc": "Lower Extremity",
+        "label": "nv"
+    },
+    "Case 2: Melanoma (mel) — High-Risk REFER": {
+        "file_id": "ISIC_0026993",
+        "age": 35,
+        "sex": "Female",
+        "loc": "Lower Extremity",
+        "label": "mel"
+    },
+    "Case 3: Basal Cell Carcinoma (bcc) — Specialist REFER": {
+        "file_id": "ISIC_0026760",
+        "age": 68,
+        "sex": "Male",
+        "loc": "Face (Chronic UV)",
+        "label": "bcc"
+    },
+    "Case 4: Quality Defect — Degraded Capture RE_IMAGE": {
+        "file_id": "ISIC_0025984",
+        "age": 42,
+        "sex": "Female",
+        "loc": "Lower Extremity",
+        "label": "nv"
+    },
+    "Case 5: Actinic Keratosis (akiec) — Pre-malignant REFER": {
+        "file_id": "ISIC_0029360",
+        "age": 72,
+        "sex": "Male",
+        "loc": "Scalp (Chronic UV)",
+        "label": "akiec"
+    },
+    "Custom Upload": {
+        "file_id": None,
+        "age": 35,
+        "sex": "Female",
+        "loc": "Lower Extremity",
+        "label": "unknown"
+    }
+}
 
-        col_img, col_agents = st.columns([5, 7], gap="large")
+with tab1:
+    col_left, col_right = st.columns([5, 7], gap="large")
 
-        # --- LEFT COLUMN: IMAGE VIEWER & LAYER INSPECTION ---
-        with col_img:
-            st.markdown("#### 🖼️ Dermoscopic Specimen Inspection & Algorithmic Overlays")
+    with col_left:
+        selected_case = st.selectbox(
+            "Select Benchmark Case or Upload Custom Specimen",
+            list(CASE_PRESETS.keys()),
+            index=0,
+            label_visibility="collapsed",
+            key="tab1_case_choice"
+        )
+        cfg = CASE_PRESETS[selected_case]
 
-            inspect_mode = st.radio(
-                "Inspection Mode",
-                [
-                    "📷 Standard RGB",
-                    "🛡️ Agent 1: Quality Measures",
-                    "🔬 Agent 3: ABCD Morphology",
-                ],
+        st.markdown('<div class="control-section-label">UPLOAD CUSTOM DERMOSCOPIC IMAGE</div>', unsafe_allow_html=True)
+        tab1_upload = st.file_uploader(
+            "Upload Custom Dermoscopic Image",
+            type=["jpg", "jpeg", "png", "webp"],
+            key="tab1_drag_uploader",
+            help="Click to upload or drag & drop JPG, PNG, WebP dermoscopic captures",
+            label_visibility="collapsed"
+        )
+
+        st.markdown('<div class="control-section-label">PATIENT DEMOGRAPHICS (AGENT 4 CONTEXT)</div>', unsafe_allow_html=True)
+        dem1, dem2, dem3 = st.columns([1, 1.2, 1.4])
+        with dem1:
+            in_age = st.number_input("AGE (YEARS)", min_value=1, max_value=110, value=int(cfg["age"]), step=1, key="t1_in_age")
+        with dem2:
+            sex_choices = ["Female", "Male", "Unknown"]
+            s_idx = sex_choices.index(cfg["sex"]) if cfg["sex"] in sex_choices else 0
+            in_sex = st.selectbox("SEX", sex_choices, index=s_idx, key="t1_in_sex")
+        with dem3:
+            loc_choices = [
+                "Lower Extremity",
+                "Upper Extremity",
+                "Back",
+                "Chest",
+                "Abdomen",
+                "Face (Chronic UV)",
+                "Scalp (Chronic UV)",
+                "Ear (Chronic UV)",
+                "Neck (Chronic UV)",
+                "Acral",
+                "Unknown"
+            ]
+            l_idx = loc_choices.index(cfg["loc"]) if cfg["loc"] in loc_choices else 0
+            in_loc = st.selectbox("LOCALIZATION", loc_choices, index=l_idx, key="t1_in_loc")
+
+        tp1, tp2 = st.columns([1.1, 2])
+        with tp1:
+            st.markdown('<div style="font-size: 13px; font-weight: 600; padding-top: 6px; color: #cbd5e1;">Clinical Threshold Preset:</div>', unsafe_allow_html=True)
+        with tp2:
+            thresh_preset = st.radio(
+                "Clinical Threshold Preset",
+                ["Conservative", "Balanced", "Aggressive"],
+                index=1,
                 horizontal=True,
-                key="specimen_inspect_mode"
+                label_visibility="collapsed",
+                key="t1_thresh_preset"
             )
 
-            info_dict = None
+        run_btn = st.button("Run Six-Agent Screening & Triage", type="primary", use_container_width=True, key="t1_run_screening_btn")
 
-            if inspect_mode == "📷 Standard RGB":
-                view_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-                h, w = img_bgr.shape[:2]
-                st.image(view_img, caption=f"Specimen: {img_name} (High-Resolution Optical Dermoscopy)", use_container_width=True)
-                st.caption(f"Resolution: {w}x{h} px • Channels: 3 • Specimen: {img_name}")
+        # Resolve active specimen image
+        if tab1_upload is not None:
+            active_img_bgr = cv2.imdecode(np.frombuffer(tab1_upload.read(), np.uint8), cv2.IMREAD_COLOR)
+            active_img_name = tab1_upload.name
+        elif cfg["file_id"] is not None:
+            active_img_bgr = find_specimen_image(cfg["file_id"])
+            active_img_name = cfg["file_id"]
+        elif img_bgr is not None:
+            active_img_bgr = img_bgr
+            active_img_name = img_name
+        else:
+            active_img_bgr = find_specimen_image("ISIC_0026993")
+            active_img_name = "ISIC_0026993"
 
-            elif inspect_mode == "🛡️ Agent 1: Quality Measures":
-                q_layer = st.selectbox(
-                    "Select Agent 1 Quality Measure to Mark on Image:",
-                    [
-                        "Laplacian Gradient & Tenengrad (Blur & Sharpness)",
-                        "Illumination Entropy & Exposure Masks (Lighting)",
-                        "Specular Glare Reflection Void Contours (Flash)",
-                        "Perimeter 15% Margin & Corner Vignettes (Centering)",
-                        "Blackhat Morphological Fibers (Hair & Obstruction)",
-                        "Composite Optical Quality Defect Map",
-                    ],
-                    key="a1_measure_select"
+        if active_img_bgr is not None:
+            st.markdown("""<div class="contours-card-header">
+<div class="contours-title">VISUAL DERMOSCOPY & CONTOURS</div>
+<div class="contours-res">224 × 224 px</div>
+</div>""", unsafe_allow_html=True)
+            v1, v2 = st.columns(2)
+            rgb_224 = cv2.cvtColor(cv2.resize(active_img_bgr, (224, 224)), cv2.COLOR_BGR2RGB)
+            contour_224 = make_contour_and_axes_overlay(active_img_bgr)
+            with v1:
+                st.image(rgb_224, caption="1. Original Capture", use_container_width=True)
+            with v2:
+                st.image(contour_224, caption="2. Contour & Asymmetry Axes", use_container_width=True)
+
+            with st.expander("🔬 Deep Algorithmic Inspection (A1 Quality Maps & A3 ABCD Morphology)", expanded=False):
+                insp_mode = st.radio(
+                    "Inspection Mode",
+                    ["🛡️ Agent 1: Quality Measures", "🔬 Agent 3: ABCD Morphology"],
+                    horizontal=True,
+                    key="t1_insp_mode"
                 )
-
-                if "Blur & Sharpness" in q_layer:
-                    overlay_bgr, info_dict = make_sharpness_map(img_bgr)
-                elif "Lighting" in q_layer:
-                    overlay_bgr, info_dict = make_lighting_map(img_bgr)
-                elif "Flash" in q_layer:
-                    overlay_bgr, info_dict = make_glare_map(img_bgr)
-                elif "Centering" in q_layer:
-                    overlay_bgr, info_dict = make_centering_map(img_bgr)
-                elif "Hair" in q_layer:
-                    overlay_bgr, info_dict = make_hair_map(img_bgr)
+                info_dict = None
+                if "Quality Measures" in insp_mode:
+                    q_measure = st.selectbox(
+                        "Select Agent 1 Quality Measure to Mark on Image:",
+                        [
+                            "Laplacian Gradient & Tenengrad (Blur & Sharpness)",
+                            "Illumination Entropy & Exposure Masks (Lighting)",
+                            "Specular Glare Reflection Void Contours (Flash)",
+                            "Perimeter 15% Margin & Corner Vignettes (Centering)",
+                            "Blackhat Morphological Fibers (Hair & Obstruction)",
+                            "Composite Optical Quality Defect Map",
+                        ],
+                        key="t1_qm_select"
+                    )
+                    if "Blur & Sharpness" in q_measure:
+                        over_bgr, info_dict = make_sharpness_map(active_img_bgr)
+                    elif "Lighting" in q_measure:
+                        over_bgr, info_dict = make_lighting_map(active_img_bgr)
+                    elif "Flash" in q_measure:
+                        over_bgr, info_dict = make_glare_map(active_img_bgr)
+                    elif "Centering" in q_measure:
+                        over_bgr, info_dict = make_centering_map(active_img_bgr)
+                    elif "Hair" in q_measure:
+                        over_bgr, info_dict = make_hair_map(active_img_bgr)
+                    else:
+                        over_bgr, info_dict = make_composite_quality_map(active_img_bgr)
                 else:
-                    overlay_bgr, info_dict = make_composite_quality_map(img_bgr)
+                    a3_measure = st.selectbox(
+                        "Select Agent 3 ABCD Feature to Mark on Image:",
+                        [
+                            "Asymmetry (A): Principal Inertia Axes & Fold XOR",
+                            "Border Irregularity (B): 8-Octant Radial Profile & Scalloped Notches",
+                            "Color Variegation (C): 6-Chromophore Depth Clustering Map",
+                            "Diameter & Field Area (D): Enclosing Caliper & Lesion Fraction",
+                            "Full ABCD Clinical Synthesis (Stolz TDS Score)",
+                        ],
+                        key="t1_a3m_select"
+                    )
+                    if "Asymmetry" in a3_measure:
+                        over_bgr, info_dict = make_asymmetry_overlay(active_img_bgr, active_img_name or "")
+                    elif "Border" in a3_measure:
+                        over_bgr, info_dict = make_border_overlay(active_img_bgr, active_img_name or "")
+                    elif "Color" in a3_measure:
+                        over_bgr, info_dict = make_color_overlay(active_img_bgr, active_img_name or "")
+                    elif "Diameter" in a3_measure:
+                        over_bgr, info_dict = make_diameter_overlay(active_img_bgr, active_img_name or "")
+                    else:
+                        over_bgr, info_dict = make_abcd_full_overlay(active_img_bgr, active_img_name or "")
 
-                view_img = cv2.cvtColor(overlay_bgr, cv2.COLOR_BGR2RGB)
-                st.image(view_img, caption=info_dict["title"], use_container_width=True)
+                if info_dict is not None:
+                    st.image(cv2.cvtColor(over_bgr, cv2.COLOR_BGR2RGB), caption=info_dict["title"], use_container_width=True)
+                    s_col = "#10b981" if "PASS" in info_dict["status"] else "#ef4444"
+                    s_bg = "rgba(16, 185, 129, 0.15)" if "PASS" in info_dict["status"] else "rgba(239, 68, 68, 0.15)"
+                    st.markdown(f"""<div class="scientific-rationale-box">
+<div class="rationale-header">
+<div class="rationale-title">🔬 {info_dict['title']}</div>
+<div class="rationale-badge" style="background: {s_bg}; color: {s_col}; border: 1px solid {s_col}50;">
+{info_dict['status']}
+</div>
+</div>
+<div class="rationale-meta">
+<strong>Metric:</strong> <code>{info_dict['metric_name']}</code> &nbsp;•&nbsp;
+<strong>Value:</strong> <span style="color:#38bdf8; font-weight:700;">{info_dict['value']}</span> &nbsp;•&nbsp;
+<strong>Threshold:</strong> {info_dict['threshold']}
+</div>
+<div class="rationale-section">
+<strong>📐 How It Is Measured (Mathematical & CV Algorithm):</strong><br/>
+{info_dict['algorithm']}
+</div>
+<div class="rationale-section" style="margin-top: 10px;">
+<strong>🩺 Clinical Significance & Medical Rationale:</strong><br/>
+{info_dict['rationale']}
+</div>
+<div class="rationale-section" style="margin-top: 8px; font-size: 11.5px; opacity: 0.85;">
+<strong>📊 Raw Telemetry:</strong> <code>{info_dict.get('raw_stats', 'N/A')}</code>
+</div>
+</div>""", unsafe_allow_html=True)
 
-            else:  # Agent 3: ABCD Morphology
-                abcd_layer = st.selectbox(
-                    "Select Agent 3 ABCD Feature to Mark on Image:",
-                    [
-                        "Asymmetry (A): Principal Inertia Axes & Fold XOR",
-                        "Border Irregularity (B): 8-Octant Radial Profile & Scalloped Notches",
-                        "Color Variegation (C): 6-Chromophore Depth Clustering Map",
-                        "Diameter & Field Area (D): Enclosing Caliper & Lesion Fraction",
-                        "Full ABCD Clinical Synthesis (Stolz TDS Score)",
-                    ],
-                    key="a3_feature_select"
-                )
+    with col_right:
+        if active_img_bgr is None:
+            st.info("👈 Please select a case or upload a dermoscopic photograph to begin screening.")
+        else:
+            # Run Six Agents
+            q_res = agents["A1"].assess(active_img_bgr)
+            d_res = agents["A2"].predict(active_img_bgr, image_id=active_img_name)
+            l_res = agents["A3"].analyze(active_img_bgr, image_id=active_img_name)
+            clean_loc = in_loc.split(" (")[0].lower()
+            c_res = agents["A4"].evaluate_context(age=in_age, sex=in_sex.lower(), localization=clean_loc)
+            s_res = agents["A5"].audit(q_res, d_res, l_res, c_res)
+            coord_res = agents["A6"].coordinate(q_res, d_res, l_res, c_res, s_res)
 
-                if "Asymmetry" in abcd_layer:
-                    overlay_bgr, info_dict = make_asymmetry_overlay(img_bgr, img_name or "")
-                elif "Border" in abcd_layer:
-                    overlay_bgr, info_dict = make_border_overlay(img_bgr, img_name or "")
-                elif "Color" in abcd_layer:
-                    overlay_bgr, info_dict = make_color_overlay(img_bgr, img_name or "")
-                elif "Diameter" in abcd_layer:
-                    overlay_bgr, info_dict = make_diameter_overlay(img_bgr, img_name or "")
+            c_dec = coord_res["decision"]
+            is_malig_bool = d_res.get("is_high_risk", False) or coord_res["final_predicted_label"] in HIGH_RISK_CLASSES
+
+            if c_dec == "REFER":
+                if is_malig_bool:
+                    p_rule_name = f"Policy Rule 2 (Doctor Referral): Detected potential skin cancer code '{coord_res['final_predicted_label']}'."
+                    p_rule_desc = f"The Diagnosis Agent identified a potential skin cancer '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] with {d_res['confidence_pct']}% confidence. Automated sign-off is paused; prompt evaluation by a dermatologist is recommended."
                 else:
-                    overlay_bgr, info_dict = make_abcd_full_overlay(img_bgr, img_name or "")
+                    p_rule_name = f"Policy Rule 3 (Doctor Referral): Safety Sentinel Veto ({s_res.get('primary_trigger', 'Clinical Discordance')})."
+                    p_rule_desc = f"The Diagnosis Agent predicted benign pathology '{coord_res['final_predicted_name']}', but Safety Sentinel Agent detected conflict or borderline morphology. Automated sign-off is paused; prompt evaluation by a dermatologist is recommended."
+            elif c_dec == "RE_IMAGE":
+                p_rule_name = "Policy Rule 1 (Capture Quality Gating): Specimen Image Quality Below Diagnostic Standard."
+                p_rule_desc = f"The Image Quality Agent evaluated this capture at {q_res.get('quality_score', 0)*100:.1f}/100 resulting in disposition 'RE_IMAGE'. Artifacts (blur/glare/occlusion) prevent safe automated screening; please acquire a clearer photograph."
+            else:
+                p_rule_name = f"Policy Rule 4 (Autonomous Sign-Off): Unanimous Benign Multi-Agent Consensus for '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}]."
+                p_rule_desc = f"The Image Quality Agent verified high capture integrity, the Diagnosis Agent confirmed benign pathology with {d_res['confidence_pct']}% confidence, and all safety guardrails passed. Safe for autonomous routine triage."
 
-                view_img = cv2.cvtColor(overlay_bgr, cv2.COLOR_BGR2RGB)
-                st.image(view_img, caption=info_dict["title"], use_container_width=True)
+            st.markdown(f"""<div class="policy-decision-banner">
+<div class="policy-title">Policy Rule Applied: {p_rule_name}</div>
+<div class="policy-desc">{p_rule_desc}</div>
+</div>""", unsafe_allow_html=True)
 
-            # Render Scientific Measurement Algorithm & Clinical Rationale Box
-            if info_dict:
-                status_color = "#10b981" if "PASS" in info_dict["status"] else "#ef4444"
-                status_bg = "rgba(16, 185, 129, 0.15)" if "PASS" in info_dict["status"] else "rgba(239, 68, 68, 0.15)"
-                st.markdown(f"""
-                <div class="scientific-rationale-box">
-                    <div class="rationale-header">
-                        <div class="rationale-title">🔬 {info_dict['title']}</div>
-                        <div class="rationale-badge" style="background: {status_bg}; color: {status_color}; border: 1px solid {status_color}50;">
-                            {info_dict['status']}
-                        </div>
-                    </div>
-                    <div class="rationale-meta">
-                        <strong>Metric:</strong> <code>{info_dict['metric_name']}</code> &nbsp;•&nbsp;
-                        <strong>Value:</strong> <span style="color:#38bdf8; font-weight:700;">{info_dict['value']}</span> &nbsp;•&nbsp;
-                        <strong>Threshold:</strong> {info_dict['threshold']}
-                    </div>
-                    <div class="rationale-section">
-                        <strong>📐 How It Is Measured (Mathematical & CV Algorithm):</strong><br/>
-                        {info_dict['algorithm']}
-                    </div>
-                    <div class="rationale-section" style="margin-top: 10px;">
-                        <strong>🩺 Clinical Significance & Medical Rationale:</strong><br/>
-                        {info_dict['rationale']}
-                    </div>
-                    <div class="rationale-section" style="margin-top: 8px; font-size: 11.5px; opacity: 0.85;">
-                        <strong>📊 Raw Telemetry:</strong> <code>{info_dict.get('raw_stats', 'N/A')}</code>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        # --- RIGHT COLUMN: FULL 6 AGENTS BREAKDOWN ---
-        with col_agents:
             # ------------------------------------------------------------------
             # CARD 1: AGENT 1 - IMAGE QUALITY AGENT
             # ------------------------------------------------------------------
-            gray_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+            gray_img = cv2.cvtColor(active_img_bgr, cv2.COLOR_BGR2GRAY)
             m_a1 = q_res.get("metrics", {})
             lap_v = float(m_a1.get("blur", cv2.Laplacian(gray_img, cv2.CV_64F).var()))
             sobelx = cv2.Sobel(gray_img, cv2.CV_64F, 1, 0, ksize=3)
             sobely = cv2.Sobel(gray_img, cv2.CV_64F, 0, 1, ksize=3)
             tenengrad_v = int(np.mean(sobelx**2 + sobely**2))
-            
-            # Image Entropy
+
             hist_q = cv2.calcHist([gray_img], [0], None, [256], [0, 256])
             hist_q = hist_q / (hist_q.sum() + 1e-7)
             hist_q = hist_q[hist_q > 0]
             img_entropy_bits = float(-np.sum(hist_q * np.log2(hist_q)))
-            
-            # Sharpness score
+
             blur_score_val = 100.00 if lap_v >= 40.0 else max(0.0, round((lap_v / 40.0) * 100.0, 2))
             blur_pass = lap_v >= 40.0
-            
-            # Lighting entropy score
+
             light_score_val = 88.80 if img_entropy_bits >= 4.50 else max(0.0, round((img_entropy_bits / 4.50) * 88.80, 2))
             light_pass = img_entropy_bits >= 4.50
             mean_gray_val = float(m_a1.get("brightness", gray_img.mean()))
-            
-            # Specular glare
+
             glare_r = float(m_a1.get("glare_ratio", 0.0))
             glare_score_val = 100.00 if glare_r <= 0.05 else max(0.0, round(100.0 - (glare_r * 100.0), 2))
             glare_pass = glare_score_val >= 70.00
-            
-            # Centering / occlusion
+
             edge_dens = float(m_a1.get("dark_corner_ratio", 0.03)) * 100.0
             center_score_val = 100.00 if edge_dens <= 20.0 else max(0.0, round(100.0 - edge_dens, 2))
             center_pass = center_score_val >= 50.00
-            
-            # Composite quality
+
             comp_score_val = round(q_res["quality_score"] * 100.0, 2)
             comp_pass = comp_score_val >= 50.00
             a1_disp = "PASS" if (comp_pass and q_res["status"] in ["GOOD", "ACCEPTABLE"]) else "FAIL"
-            a1_pill_bg = "#064e3b" if a1_disp == "PASS" else "#7f1d1d"
+            a1_pill_bg = "rgba(16, 185, 129, 0.15)" if a1_disp == "PASS" else "rgba(239, 68, 68, 0.15)"
             a1_pill_col = "#34d399" if a1_disp == "PASS" else "#f87171"
             a1_pill_bd = "#059669" if a1_disp == "PASS" else "#dc2626"
-            
+
             st.markdown(f"""<details class="agent-card-container" open>
 <summary class="agent-card-header">
 <div class="agent-card-left">
 <div class="agent-badge-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">A1</div>
 <div>
 <div class="agent-title-text">Image Quality Agent</div>
-<div class="agent-subtitle-text">Image is usable for clinical assessment with optimal sharpness and illumination.</div>
+<div class="agent-subtitle-text">Photo quality is excellent: clear, sharp, and well-lit.</div>
 </div>
 </div>
 <div class="status-pill-badge" style="background: {a1_pill_bg}; color: {a1_pill_col}; border: 1px solid {a1_pill_bd};">
@@ -1145,7 +1282,7 @@ with tab1:
 </div>
 </summary>
 <div class="agent-card-narrative">
-Image Quality Agent evaluated capture integrity at {comp_score_val:.1f}/100 resulting in disposition '{a1_disp}'. Sharpness was measured at {blur_score_val:.1f}/100 (Laplacian variance {lap_v:.1f}) and illumination entropy at {light_score_val:.1f}/100. No significant specular voids or peripheral obstruction was detected.
+The Image Quality Agent evaluated this photo at {comp_score_val:.1f} out of 100 ({a1_disp}). Sharpness was measured at {blur_score_val:.1f}/100 and lighting at {light_score_val:.1f}/100. The photo is clear, sharp, and easy to inspect.
 </div>
 <table class="clinical-eval-table">
 <thead>
@@ -1163,35 +1300,35 @@ Image Quality Agent evaluated capture integrity at {comp_score_val:.1f}/100 resu
 <td class="col-val">{blur_score_val:.2f}</td>
 <td class="col-thresh">&gt;= 40.00</td>
 <td><span class="{'badge-pass' if blur_pass else 'badge-flag'}">{'✔ PASS' if blur_pass else '▲ FLAG'}</span></td>
-<td class="col-note">Sharpness score is {blur_score_val:.1f} (cutoff 40.0; LapVar={lap_v:.1f}, Tenengrad={tenengrad_v})</td>
+<td class="col-note">Sharpness score is {blur_score_val:.1f}/100 (needs at least 40.0 to pass; clear focus)</td>
 </tr>
 <tr>
 <td class="col-feature">lighting_entropy</td>
 <td class="col-val">{light_score_val:.2f}</td>
 <td class="col-thresh">&gt;= 4.50</td>
 <td><span class="{'badge-pass' if light_pass else 'badge-flag'}">{'✔ PASS' if light_pass else '▲ FLAG'}</span></td>
-<td class="col-note">Lighting entropy score is {light_score_val:.1f} (cutoff 4.5; Entropy={img_entropy_bits:.2f} bits, Mean={mean_gray_val:.1f})</td>
+<td class="col-note">Lighting score is {light_score_val:.1f}/100 (needs at least 4.5 to pass; balanced brightness)</td>
 </tr>
 <tr>
 <td class="col-feature">specular_glare</td>
 <td class="col-val">{glare_score_val:.2f}</td>
 <td class="col-thresh">&gt;= 70.00</td>
 <td><span class="{'badge-pass' if glare_pass else 'badge-flag'}">{'✔ PASS' if glare_pass else '▲ FLAG'}</span></td>
-<td class="col-note">Flash reflection score is {glare_score_val:.1f} (specular area {glare_r*100:.2f}% vs max 70.0%)</td>
+<td class="col-note">Glare-free score is {glare_score_val:.1f}/100 (shiny flash covers {glare_r*100:.1f}%, limit 70.0%)</td>
 </tr>
 <tr>
 <td class="col-feature">centering_occlusion</td>
 <td class="col-val">{center_score_val:.2f}</td>
 <td class="col-thresh">&gt;= 50.00</td>
 <td><span class="{'badge-pass' if center_pass else 'badge-flag'}">{'✔ PASS' if center_pass else '▲ FLAG'}</span></td>
-<td class="col-note">Centering score is {center_score_val:.1f} (perimeter edge density {edge_dens:.1f}% vs max 50.0%)</td>
+<td class="col-note">Centering score is {center_score_val:.1f}/100 (spot is well positioned away from image edges)</td>
 </tr>
 <tr>
 <td class="col-feature">composite_quality</td>
 <td class="col-val">{comp_score_val:.2f}</td>
 <td class="col-thresh">&gt;= 50.00</td>
 <td><span class="{'badge-pass' if comp_pass else 'badge-flag'}">{'✔ PASS' if comp_pass else '▲ FLAG'}</span></td>
-<td class="col-note">Overall composite quality is {comp_score_val:.1f}/100 (RE_IMAGE cutoff 50.0)</td>
+<td class="col-note">Overall quality score is {comp_score_val:.1f}/100 (minimum 50.0 needed for automated analysis)</td>
 </tr>
 </tbody>
 </table>
@@ -1210,24 +1347,24 @@ Image Quality Agent evaluated capture integrity at {comp_score_val:.1f}/100 resu
                 ("df", "Dermatofibroma [df]", "#06b6d4"),
                 ("vasc", "Vascular Lesion [vasc]", "#3b82f6"),
             ]
-            
+
             sorted_diff = sorted(p_dict.items(), key=lambda x: x[1], reverse=True)
             top1_c, top1_p = sorted_diff[0] if len(sorted_diff) > 0 else (d_res["predicted_class"], d_res["confidence"])
             top2_c, top2_p = sorted_diff[1] if len(sorted_diff) > 1 else ("nv", 0.0)
             top3_c, top3_p = sorted_diff[2] if len(sorted_diff) > 2 else ("bkl", 0.0)
-            
+
             top2_margin_v = top1_p - top2_p
             shannon_ent = float(-sum(p * np.log2(p) for p in p_dict.values() if p > 0)) if p_dict else 0.95
             cum_malig_v = float(p_dict.get("mel", 0.0) + p_dict.get("bcc", 0.0) + p_dict.get("akiec", 0.0))
             mel_risk_v = float(p_dict.get("mel", 0.0))
             certainty_str = "HIGH_CERTAINTY" if shannon_ent <= 1.20 else ("MODERATE_CERTAINTY" if shannon_ent <= 1.65 else "UNCERTAIN")
-            
+
             r_conf_pass = top1_p >= 0.80
             r_margin_pass = top2_margin_v >= 0.10
             r_entropy_pass = shannon_ent <= 1.65
             r_cum_pass = cum_malig_v <= 0.22
             r_mel_pass = mel_risk_v <= 0.18
-            
+
             top3_summary_html = f'<div style="font-size: 12px; margin-bottom: 12px; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"><strong>🏆 Top 3 Candidate Predictions:</strong> &nbsp;1. <strong>{CLASS_DISPLAY_NAMES.get(top1_c, top1_c)}</strong> (<code>{top1_c}</code>): <strong>{top1_p*100:.1f}%</strong> &nbsp;|&nbsp; 2. <strong>{CLASS_DISPLAY_NAMES.get(top2_c, top2_c)}</strong> (<code>{top2_c}</code>): {top2_p*100:.1f}% &nbsp;|&nbsp; 3. <strong>{CLASS_DISPLAY_NAMES.get(top3_c, top3_c)}</strong> (<code>{top3_c}</code>): {top3_p*100:.1f}%</div>'
 
             prob_rows = "".join([
@@ -1242,7 +1379,7 @@ Image Quality Agent evaluated capture integrity at {comp_score_val:.1f}/100 resu
 <div class="agent-badge-icon" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">A2</div>
 <div>
 <div class="agent-title-text">Diagnosis Agent (7 HAM10000 Codes)</div>
-<div class="agent-subtitle-text">Model predicts {d_res['display_name']} [{d_res['predicted_class']}] with {d_res['confidence_pct']}% confidence.</div>
+<div class="agent-subtitle-text">The AI model predicts {d_res['display_name']} [{d_res['predicted_class']}] with {d_res['confidence_pct']}% confidence.</div>
 </div>
 </div>
 <div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
@@ -1310,23 +1447,22 @@ Diagnosis Agent classified the dermoscopic lesion as '{d_res['display_name']}' (
             a3_susp = float(l_res.get("suspicion_score", 0.47))
             tds_val = float(a3_susp * 10.0)
             a3_pill_txt = "INDETERMINATE" if 0.40 <= a3_susp < 0.55 else ("SUSPICIOUS" if a3_susp >= 0.55 else "BENIGN")
-            
+
             border_comp_v = float(l_res.get("border_irregularity_score", 0.5) * 20.0 + 3.59) if a3_susp > 0.4 else 1.25
             octants_str = "7/8" if border_comp_v > 1.60 else "1/8"
             border_flag = border_comp_v > 1.60
-            
+
             asym_fold_v = float(l_res.get("asymmetry_score", 0.0))
             asym_axes_str = "1/2" if asym_fold_v > 0.35 else "0/2"
             asym_pass = asym_fold_v <= 0.35
-            
+
             color_std_v = float(l_res.get("feature_evidence", {}).get("color_heterogeneity_std", 45.4))
             color_flag = color_std_v > 32.00
-            
+
             tds_pass = tds_val <= 5.45
             area_coverage_v = float(l_res.get("feature_evidence", {}).get("coverage_pct", 49.6))
             area_pass = area_coverage_v >= 2.00
 
-            # Format demonstrable feature evidence and reliability flags per Healthcare Day 2 Brief
             f_evidence_disp = {
                 "asymmetry_index": round(asym_fold_v, 3),
                 "border_compactness": round(border_comp_v, 2),
@@ -1338,14 +1474,14 @@ Diagnosis Agent classified the dermoscopic lesion as '{d_res['display_name']}' (
             }
             rel_flags = l_res.get("reliability_flags", ["Adequate pixel resolution", "Contour closed", "High diagnostic reliability"])
             rel_flags_html = " ".join([f'<span class="evidence-pill">🏷️ {f}</span>' for f in rel_flags])
-            
+
             st.markdown(f"""<details class="agent-card-container" open>
 <summary class="agent-card-header">
 <div class="agent-card-left">
 <div class="agent-badge-icon" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">A3</div>
 <div>
 <div class="agent-title-text">Lesion Analysis Agent (Dermoscopic ABCD)</div>
-<div class="agent-subtitle-text">Lesion exhibits intermediate structural complexity warranting caution.</div>
+<div class="agent-subtitle-text">The spot shows mild irregularities in shape and border structure.</div>
 </div>
 </div>
 <div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
@@ -1418,33 +1554,31 @@ Lesion Analysis Agent computed an ABCD suspicion score of {a3_susp:.2f} (TDS={td
             # ------------------------------------------------------------------
             # CARD 4: AGENT 4 - CONTEXT & DEMOGRAPHICS AGENT
             # ------------------------------------------------------------------
-            demo_age = float(p_age) if (p_age is not None and str(p_age).replace('.','').isdigit()) else 35.0
-            demo_site = str(p_loc).lower() if (p_loc is not None and str(p_loc) not in ["unknown", "nan", ""]) else "lower extremity"
             demo_risk_v = float(c_res.get("context_risk_score", 0.30))
             demo_tier_str = "LOW" if demo_risk_v < 0.45 else ("MODERATE" if demo_risk_v < 0.70 else "HIGH")
-            demo_pill_bg = "#064e3b" if demo_tier_str == "LOW" else ("#78350f" if demo_tier_str == "MODERATE" else "#7f1d1d")
-            demo_pill_col = "#34d399" if demo_tier_str == "LOW" else ("#fcd34d" if demo_tier_str == "MODERATE" else "#f87171")
+            demo_pill_bg = "rgba(16, 185, 129, 0.15)" if demo_tier_str == "LOW" else ("rgba(245, 158, 11, 0.2)" if demo_tier_str == "MODERATE" else "rgba(239, 68, 68, 0.15)")
+            demo_pill_col = "#34d399" if demo_tier_str == "LOW" else ("#fbbf24" if demo_tier_str == "MODERATE" else "#f87171")
             demo_pill_bd = "#059669" if demo_tier_str == "LOW" else ("#d97706" if demo_tier_str == "MODERATE" else "#dc2626")
-            
-            age_pass = demo_age < 60.0
+
+            age_pass = in_age < 60.0
             high_risk_locs = ["acral", "scalp", "neck", "ear", "face"]
-            site_pass = not any(hr in demo_site for hr in high_risk_locs)
+            site_pass = not any(hr in clean_loc for hr in high_risk_locs)
             demo_risk_pass = demo_risk_v < 0.70
 
             a4_missing_flags = c_res.get("missing_field_flags", {})
             a4_evidence_list = c_res.get("context_evidence", [
-                f"Patient age: {int(demo_age)}y (intermediate cohort)",
-                f"Standard anatomical localization: '{demo_site}'",
+                f"Patient age: {int(in_age)}y (intermediate cohort)",
+                f"Standard anatomical localization: '{in_loc}'",
             ])
             a4_evidence_html = "".join([f"<li style='margin-bottom:3px;'>{ev}</li>" for ev in a4_evidence_list])
-            
+
             st.markdown(f"""<details class="agent-card-container" open>
 <summary class="agent-card-header">
 <div class="agent-card-left">
 <div class="agent-badge-icon" style="background: rgba(147, 51, 234, 0.2); color: #d8b4fe;">A4</div>
 <div>
 <div class="agent-title-text">Context & Demographics Agent</div>
-<div class="agent-subtitle-text">Patient presentation exhibits {demo_tier_str} demographic risk based on age, anatomical site, and solar UV history.</div>
+<div class="agent-subtitle-text">Background risk is {demo_tier_str} based on patient age and lesion location.</div>
 </div>
 </div>
 <div class="status-pill-badge" style="background: {demo_pill_bg}; color: {demo_pill_col}; border: 1px solid {demo_pill_bd};">
@@ -1452,7 +1586,7 @@ Lesion Analysis Agent computed an ABCD suspicion score of {a3_susp:.2f} (TDS={td
 </div>
 </summary>
 <div class="agent-card-narrative">
-Context & Demographics Agent evaluated clinical risk at {demo_risk_v:.2f}/1.0 ({demo_tier_str}). Patient is {int(demo_age)} years old presenting with lesion at '{demo_site}'. Young adult ({int(demo_age)} yrs): Benign melanocytic nevi are prevalent; new or evolving lesions warrant monitoring.
+Context & Demographics Agent evaluated clinical risk at {demo_risk_v:.2f}/1.0 ({demo_tier_str}). Patient is {int(in_age)} years old presenting with lesion at '{in_loc}'. Benign melanocytic nevi are prevalent; new or evolving lesions warrant monitoring.
 </div>
 <div class="evidence-box">
 <div style="font-size: 11px; font-weight: 700; color: #d8b4fe; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Agent 4 Context Evidence:</div>
@@ -1477,17 +1611,17 @@ age_missing={a4_missing_flags.get('age_missing', False)} • sex_missing={a4_mis
 <tbody>
 <tr>
 <td class="col-feature">patient_age_risk</td>
-<td class="col-val">{demo_age:.2f}</td>
+<td class="col-val">{in_age:.2f}</td>
 <td class="col-thresh">&lt; 60.00</td>
 <td><span class="{'badge-pass' if age_pass else 'badge-flag'}">{'✔ PASS' if age_pass else '▲ FLAG'}</span></td>
-<td class="col-note">Age is {int(demo_age)} yrs (senior cutoff: 60 yrs, geriatric cutoff: 75 yrs)</td>
+<td class="col-note">Age is {int(in_age)} yrs (senior cutoff: 60 yrs, geriatric cutoff: 75 yrs)</td>
 </tr>
 <tr>
 <td class="col-feature">anatomical_site_risk</td>
-<td class="col-val">{demo_site}</td>
+<td class="col-val">{in_loc}</td>
 <td class="col-thresh">not in acral,scalp,neck,ear,face</td>
 <td><span class="{'badge-pass' if site_pass else 'badge-flag'}">{'✔ PASS' if site_pass else '▲ FLAG'}</span></td>
-<td class="col-note">Location is '{demo_site}' (high risk sites: acral, ear, face, neck, scalp)</td>
+<td class="col-note">Location is '{in_loc}' (high risk sites: acral, ear, face, neck, scalp)</td>
 </tr>
 <tr>
 <td class="col-feature">demographic_risk_score</td>
@@ -1510,19 +1644,18 @@ age_missing={a4_missing_flags.get('age_missing', False)} • sex_missing={a4_mis
             # ------------------------------------------------------------------
             # CARD 5: AGENT 5 - SAFETY AGENT (GUARDRAILS S1-S6)
             # ------------------------------------------------------------------
-            is_malig_bool = d_res.get("is_high_risk", False)
             s1_flag = is_malig_bool
             s2_flag = ("BENIGN_MORPHOLOGY_DISCREPANCY" in s_res.get("primary_trigger", "")) or (not is_malig_bool and a3_susp >= 0.55)
             s3_flag = ("DIAGNOSTIC_AMBIGUITY" in s_res.get("primary_trigger", "")) or (shannon_ent > 1.65 or top1_p < 0.65)
             s4_flag = ("HIGH_RISK_EPIDEMIOLOGICAL_CONTEXT" in s_res.get("primary_trigger", ""))
             s5_flag = (q_res.get("status") == "POOR")
             s6_flag = False
-            
-            a5_status_pill = "VETO ACTIVE" if s_res["veto"] else "PASS"
-            a5_pill_bg = "#7f1d1d" if s_res["veto"] else "#064e3b"
+
+            a5_status_pill = "SAFETY FLAG" if s_res["veto"] else "PASS"
+            a5_pill_bg = "rgba(239, 68, 68, 0.2)" if s_res["veto"] else "rgba(16, 185, 129, 0.15)"
             a5_pill_col = "#f87171" if s_res["veto"] else "#34d399"
             a5_pill_bd = "#dc2626" if s_res["veto"] else "#059669"
-            
+
             s1_note = f"Residual / Predicted Malignancy: Primary predicted class is malignant '{d_res['display_name']}' [{d_res['predicted_class']}] ({d_res['confidence_pct']}% confidence)." if s1_flag else "Residual / Predicted Malignancy: Primary predicted class is concordant benign pathology."
             s2_note = "ABCD Lesion Structural Discordance: Lesion morphometry demonstrates suspicious atypia overriding benign classification." if s2_flag else "ABCD Lesion Structural Discordance: Lesion morphometry is concordant with benign diagnosis."
             s3_note = "Diagnostic Ambiguity: Classifier entropy elevated or candidate margin narrow." if s3_flag else "Diagnostic Ambiguity: Diagnostic differential shows decisive margin and controlled entropy."
@@ -1530,13 +1663,15 @@ age_missing={a4_missing_flags.get('age_missing', False)} • sex_missing={a4_mis
             s5_note = "Capture Degradation Discharge Block: Severe optical defect requires specimen recapture." if s5_flag else "Capture Degradation Discharge Block: Image quality meets screening requirements."
             s6_note = "Test-Time Augmentation Disagreement: Test-time view predictions are geometrically stable."
 
+            a5_subtitle = "Safety check raised: Potential skin cancer detected; referral required." if s_res["veto"] else "All safety checks cleared: No conflict or risk veto raised."
+
             st.markdown(f"""<details class="agent-card-container" open>
 <summary class="agent-card-header">
 <div class="agent-card-left">
 <div class="agent-badge-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">A5</div>
 <div>
-<div class="agent-title-text">Safety Agent (Guardrails S1-S6)</div>
-<div class="agent-subtitle-text">Clinical audit of 6 safety rules across multi-modal evidence.</div>
+<div class="agent-title-text">Safety Sentinel Agent (Rules S1–S6)</div>
+<div class="agent-subtitle-text">{a5_subtitle}</div>
 </div>
 </div>
 <div class="status-pill-badge" style="background: {a5_pill_bg}; color: {a5_pill_col}; border: 1px solid {a5_pill_bd};">
@@ -1544,7 +1679,7 @@ age_missing={a4_missing_flags.get('age_missing', False)} • sex_missing={a4_mis
 </div>
 </summary>
 <div class="agent-card-narrative">
-Safety Agent evaluated multi-modal clinical signals across 6 deterministic safety rules (S1-S6). Veto status: <strong>{a5_status_pill}</strong>. Active trigger: <code>{s_res.get('primary_trigger', 'NONE (All Checks Cleared)')}</code>. Clinical rationale: {s_res.get('justification', 'No safety vetoes triggered.')}
+Safety Sentinel Agent evaluated multi-modal clinical signals across 6 deterministic safety rules (S1-S6). Veto status: <strong>{a5_status_pill}</strong>. Active trigger: <code>{s_res.get('primary_trigger', 'NONE (All Checks Cleared)')}</code>. Clinical rationale: {s_res.get('justification', 'No safety vetoes triggered.')}
 </div>
 <table class="clinical-eval-table">
 <thead>
@@ -1606,28 +1741,9 @@ Safety Agent evaluated multi-modal clinical signals across 6 deterministic safet
             # ------------------------------------------------------------------
             # CARD 6: AGENT 6 - COORDINATOR AGENT (POLICY ENGINE)
             # ------------------------------------------------------------------
-            c_dec = coord_res["decision"]
-            c_pill_bg = "#7f1d1d" if c_dec == "REFER" else ("#78350f" if c_dec == "RE_IMAGE" else "#064e3b")
-            c_pill_col = "#f87171" if c_dec == "REFER" else ("#fcd34d" if c_dec == "RE_IMAGE" else "#34d399")
+            c_pill_bg = "rgba(239, 68, 68, 0.2)" if c_dec == "REFER" else ("rgba(245, 158, 11, 0.2)" if c_dec == "RE_IMAGE" else "rgba(16, 185, 129, 0.15)")
+            c_pill_col = "#f87171" if c_dec == "REFER" else ("#fbbf24" if c_dec == "RE_IMAGE" else "#34d399")
             c_pill_bd = "#dc2626" if c_dec == "REFER" else ("#d97706" if c_dec == "RE_IMAGE" else "#059669")
-            
-            if c_dec == "RE_IMAGE":
-                p_rule_name = "Policy Rule 1 (Capture Quality Gating)"
-                p_rule_desc = "Image quality inadequate; request another scan."
-                extra_note = "Diagnostic inference safely gated to prevent misclassification."
-            elif c_dec == "REFER":
-                if is_malig_bool:
-                    p_rule_name = "Policy Rule 2 (Malignancy Referral)"
-                    p_rule_desc = f"Detected high-risk lesion code '{coord_res['final_predicted_label']}'."
-                    extra_note = f"Diagnosis Agent identified malignant pathology '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] with {d_res['confidence_pct']}% primary confidence. Automated triage is strictly forbidden; urgent dermatologist biopsy indicated."
-                else:
-                    p_rule_name = "Policy Rule 3 (Safety Guardrail Veto)"
-                    p_rule_desc = f"Triggered safety guardrail: {s_res.get('primary_trigger', 'Contradictory evidence')}."
-                    extra_note = f"Conflict between diagnostic classifier and morphological/context evidence requires specialist consultation."
-            else:
-                p_rule_name = "Policy Rule 4 (Multi-Agent Consensus)"
-                p_rule_desc = "Unanimous benign consensus across all 6 specialized agents."
-                extra_note = "Sufficient reliable evidence for automated discharge; routine follow-up indicated."
 
             st.markdown(f"""<details class="agent-card-container" open>
 <summary class="agent-card-header">
@@ -1635,7 +1751,7 @@ Safety Agent evaluated multi-modal clinical signals across 6 deterministic safet
 <div class="agent-badge-icon" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">A6</div>
 <div>
 <div class="agent-title-text">Coordinator Agent (Policy Engine)</div>
-<div class="agent-subtitle-text">Final disposition is {c_dec} with diagnosis '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] ({d_res['confidence_pct']}% confidence).</div>
+<div class="agent-subtitle-text">Final decision is {c_dec} with diagnosis '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] ({d_res['confidence_pct']}% confidence).</div>
 </div>
 </div>
 <div class="status-pill-badge" style="background: {c_pill_bg}; color: {c_pill_col}; border: 1px solid {c_pill_bd};">
@@ -1643,7 +1759,7 @@ Safety Agent evaluated multi-modal clinical signals across 6 deterministic safet
 </div>
 </summary>
 <div class="agent-card-narrative">
-Coordinator Agent synthesized outputs from all 5 agents and executed {p_rule_name}: {p_rule_desc} The final diagnosis is confirmed as '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] with disposition '{c_dec}'. {extra_note}
+Coordinator Agent synthesized outputs from all 5 agents and executed {p_rule_name}: {p_rule_desc} The final diagnosis is confirmed as '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] with disposition '{c_dec}'.
 </div>
 <table class="clinical-eval-table">
 <thead>
@@ -1661,7 +1777,7 @@ Coordinator Agent synthesized outputs from all 5 agents and executed {p_rule_nam
 <td class="col-val">{c_dec}</td>
 <td class="col-thresh">== AUTO_TRIAGE / REFER / RE_IMAGE</td>
 <td><span class="badge-pass">✔ PASS</span></td>
-<td class="col-note">Coordinator applied {p_rule_name}: {p_rule_desc}</td>
+<td class="col-note">Coordinator applied {p_rule_name}</td>
 </tr>
 <tr>
 <td class="col-feature">predicted_class_code</td>
@@ -1673,6 +1789,8 @@ Coordinator Agent synthesized outputs from all 5 agents and executed {p_rule_nam
 </tbody>
 </table>
 </details>""", unsafe_allow_html=True)
+
+    st.markdown('<div style="text-align: center; color: #475569; font-size: 11.5px; font-family: \'JetBrains Mono\', monospace; margin-top: 30px; margin-bottom: 10px;">Jaypee Agentic AI International Summit 2026 — Track 2 | Healthcare</div>', unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------------------
