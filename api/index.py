@@ -765,19 +765,49 @@ HTML_PAGE = """<!DOCTYPE html>
         }
 
         /* 6-Agent Inspection Cards Matching Clinical Specification */
+        details.agent-card-container,
         .agent-card-container {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 14px;
-            padding: 20px 24px;
+            padding: 18px 22px;
             margin-bottom: 22px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s ease;
         }
 
+        details.agent-card-container summary.agent-card-header,
         .agent-card-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
+            margin-bottom: 12px;
+            cursor: pointer;
+            user-select: none;
+            list-style: none;
+            outline: none;
+        }
+
+        details.agent-card-container summary::-webkit-details-marker,
+        details.agent-card-container summary::marker {
+            display: none !important;
+        }
+
+        details.agent-card-container[open] summary.agent-card-header {
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .caret-icon {
+            display: inline-block;
+            transition: transform 0.25s ease;
+            font-size: 11px;
+        }
+
+        details.agent-card-container[open] .caret-icon {
+            transform: rotate(180deg);
+        }
             margin-bottom: 12px;
         }
 
@@ -1474,8 +1504,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
             const cardsHtml = `
                 <!-- CARD 1: AGENT 1 -->
-                <div class="agent-card-container">
-                    <div class="agent-card-header">
+                <details class="agent-card-container" open>
+                    <summary class="agent-card-header">
                         <div class="agent-card-left">
                             <div class="agent-badge-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">A1</div>
                             <div>
@@ -1484,9 +1514,9 @@ HTML_PAGE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div class="status-pill-badge" style="background: ${a1PillBg}; color: ${a1PillCol}; border: 1px solid ${a1PillBd};">
-                            ${c.A1.disposition} ▾
+                            ${c.A1.disposition} <span class="caret-icon">▾</span>
                         </div>
-                    </div>
+                    </summary>
                     <div class="agent-card-narrative">${c.A1.summary}</div>
                     <table class="clinical-eval-table">
                         <thead>
@@ -1530,11 +1560,11 @@ HTML_PAGE = """<!DOCTYPE html>
                             </tr>
                         </tbody>
                     </table>
-                </div>
+                </details>
 
                 <!-- CARD 2: AGENT 2 -->
-                <div class="agent-card-container">
-                    <div class="agent-card-header">
+                <details class="agent-card-container" open>
+                    <summary class="agent-card-header">
                         <div class="agent-card-left">
                             <div class="agent-badge-icon" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">A2</div>
                             <div>
@@ -1543,9 +1573,9 @@ HTML_PAGE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
-                            ${c.prediction} • ${Math.round(c.A2.conf)}% ▾
+                            ${c.prediction} • ${Math.round(c.A2.conf)}% <span class="caret-icon">▾</span>
                         </div>
-                    </div>
+                    </summary>
                     <div class="agent-card-narrative">${c.A2.summary}</div>
                     ${diffHtml}
                     ${barsHtml}
@@ -1591,11 +1621,11 @@ HTML_PAGE = """<!DOCTYPE html>
                             </tr>
                         </tbody>
                     </table>
-                </div>
+                </details>
 
                 <!-- CARD 3: AGENT 3 -->
-                <div class="agent-card-container">
-                    <div class="agent-card-header">
+                <details class="agent-card-container" open>
+                    <summary class="agent-card-header">
                         <div class="agent-card-left">
                             <div class="agent-badge-icon" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">A3</div>
                             <div>
@@ -1604,9 +1634,9 @@ HTML_PAGE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
-                            ${c.A3.pill} ▾
+                            ${c.A3.pill} <span class="caret-icon">▾</span>
                         </div>
-                    </div>
+                    </summary>
                     <div class="agent-card-narrative">${c.A3.summary}</div>
                     <table class="clinical-eval-table">
                         <thead>
@@ -1650,11 +1680,11 @@ HTML_PAGE = """<!DOCTYPE html>
                             </tr>
                         </tbody>
                     </table>
-                </div>
+                </details>
 
                 <!-- CARD 4: AGENT 4 -->
-                <div class="agent-card-container">
-                    <div class="agent-card-header">
+                <details class="agent-card-container" open>
+                    <summary class="agent-card-header">
                         <div class="agent-card-left">
                             <div class="agent-badge-icon" style="background: rgba(147, 51, 234, 0.2); color: #d8b4fe;">A4</div>
                             <div>
@@ -1663,9 +1693,9 @@ HTML_PAGE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div class="status-pill-badge" style="background: ${c.A4.pill === 'LOW' ? '#064e3b' : '#7f1d1d'}; color: ${c.A4.pill === 'LOW' ? '#34d399' : '#f87171'}; border: 1px solid ${c.A4.pill === 'LOW' ? '#059669' : '#dc2626'};">
-                            ${c.A4.pill} ▾
+                            ${c.A4.pill} <span class="caret-icon">▾</span>
                         </div>
-                    </div>
+                    </summary>
                     <div class="agent-card-narrative">${c.A4.summary}</div>
                     <table class="clinical-eval-table">
                         <thead>
@@ -1702,11 +1732,11 @@ HTML_PAGE = """<!DOCTYPE html>
                             </tr>
                         </tbody>
                     </table>
-                </div>
+                </details>
 
                 <!-- CARD 5: AGENT 5 -->
-                <div class="agent-card-container">
-                    <div class="agent-card-header">
+                <details class="agent-card-container" open>
+                    <summary class="agent-card-header">
                         <div class="agent-card-left">
                             <div class="agent-badge-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">A5</div>
                             <div>
@@ -1715,9 +1745,9 @@ HTML_PAGE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div class="status-pill-badge" style="background: ${c.A5.veto ? '#7f1d1d' : '#064e3b'}; color: ${c.A5.veto ? '#f87171' : '#34d399'}; border: 1px solid ${c.A5.veto ? '#dc2626' : '#059669'};">
-                            ${c.A5.pill} ▾
+                            ${c.A5.pill} <span class="caret-icon">▾</span>
                         </div>
-                    </div>
+                    </summary>
                     <table class="clinical-eval-table">
                         <thead>
                             <tr><th style="width: 80px;">RULE</th><th style="width: 80px;">VALUE</th><th style="width: 100px;">THRESHOLD</th><th style="width: 100px;">STATUS</th><th>CLINICAL NOTE</th></tr>
@@ -1726,11 +1756,11 @@ HTML_PAGE = """<!DOCTYPE html>
                             ${sRulesHtml}
                         </tbody>
                     </table>
-                </div>
+                </details>
 
                 <!-- CARD 6: AGENT 6 -->
-                <div class="agent-card-container">
-                    <div class="agent-card-header">
+                <details class="agent-card-container" open>
+                    <summary class="agent-card-header">
                         <div class="agent-card-left">
                             <div class="agent-badge-icon" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">A6</div>
                             <div>
@@ -1739,9 +1769,9 @@ HTML_PAGE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div class="status-pill-badge" style="background: ${c.badge_color}20; color: ${c.badge_color}; border: 1px solid ${c.badge_color};">
-                            ${c.decision} ▾
+                            ${c.decision} <span class="caret-icon">▾</span>
                         </div>
-                    </div>
+                    </summary>
                     <div class="agent-card-narrative">
                         Coordinator Agent synthesized outputs from all 5 agents and executed ${c.A6.policy_name}: ${c.A6.policy_desc} The final diagnosis is confirmed as '${c.class_name}' [${c.prediction}] with disposition '${c.decision}'. ${c.A6.note}
                     </div>
@@ -1766,7 +1796,7 @@ HTML_PAGE = """<!DOCTYPE html>
                             </tr>
                         </tbody>
                     </table>
-                </div>
+                </details>
             `;
             document.getElementById('agent-cards-container').innerHTML = cardsHtml;
         }

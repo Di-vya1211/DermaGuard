@@ -344,19 +344,43 @@ st.markdown(f"""
     }}
 
     /* 6-Agent Inspection Cards per Clinical Specification */
+    details.agent-card-container,
     .agent-card-container {{
         background: {card_bg} !important;
         border: 1px solid {border_color} !important;
         border-radius: 14px;
-        padding: 20px 22px;
+        padding: 18px 22px;
         margin-bottom: 22px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+        transition: all 0.2s ease;
     }}
+    details.agent-card-container summary.agent-card-header,
     .agent-card-header {{
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
         margin-bottom: 12px;
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+        outline: none;
+    }}
+    details.agent-card-container summary::-webkit-details-marker,
+    details.agent-card-container summary::marker {{
+        display: none !important;
+    }}
+    details.agent-card-container[open] summary.agent-card-header {{
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }}
+    .caret-icon {{
+        display: inline-block;
+        transition: transform 0.25s ease;
+        font-size: 11px;
+    }}
+    details.agent-card-container[open] .caret-icon {{
+        transform: rotate(180deg);
     }}
     .agent-card-left {{
         display: flex;
@@ -1108,73 +1132,71 @@ with tab1:
             a1_pill_col = "#34d399" if a1_disp == "PASS" else "#f87171"
             a1_pill_bd = "#059669" if a1_disp == "PASS" else "#dc2626"
             
-            st.markdown(f"""
-            <div class="agent-card-container">
-                <div class="agent-card-header">
-                    <div class="agent-card-left">
-                        <div class="agent-badge-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">A1</div>
-                        <div>
-                            <div class="agent-title-text">Image Quality Agent</div>
-                            <div class="agent-subtitle-text">Image is usable for clinical assessment with optimal sharpness and illumination.</div>
-                        </div>
-                    </div>
-                    <div class="status-pill-badge" style="background: {a1_pill_bg}; color: {a1_pill_col}; border: 1px solid {a1_pill_bd};">
-                        {a1_disp} ▾
-                    </div>
-                </div>
-                <div class="agent-card-narrative">
-                    Image Quality Agent evaluated capture integrity at {comp_score_val:.1f}/100 resulting in disposition '{a1_disp}'. Sharpness was measured at {blur_score_val:.1f}/100 (Laplacian variance {lap_v:.1f}) and illumination entropy at {light_score_val:.1f}/100. No significant specular voids or peripheral obstruction was detected.
-                </div>
-                <table class="clinical-eval-table">
-                    <thead>
-                        <tr>
-                            <th>FEATURE / RULE</th>
-                            <th>VALUE</th>
-                            <th>THRESHOLD</th>
-                            <th>STATUS</th>
-                            <th>CLINICAL NOTE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="col-feature">blur_sharpness</td>
-                            <td class="col-val">{blur_score_val:.2f}</td>
-                            <td class="col-thresh">&gt;= 40.00</td>
-                            <td><span class="{'badge-pass' if blur_pass else 'badge-flag'}">{'✔ PASS' if blur_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Sharpness score is {blur_score_val:.1f} (cutoff 40.0; LapVar={lap_v:.1f}, Tenengrad={tenengrad_v})</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">lighting_entropy</td>
-                            <td class="col-val">{light_score_val:.2f}</td>
-                            <td class="col-thresh">&gt;= 4.50</td>
-                            <td><span class="{'badge-pass' if light_pass else 'badge-flag'}">{'✔ PASS' if light_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Lighting entropy score is {light_score_val:.1f} (cutoff 4.5; Entropy={img_entropy_bits:.2f} bits, Mean={mean_gray_val:.1f})</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">specular_glare</td>
-                            <td class="col-val">{glare_score_val:.2f}</td>
-                            <td class="col-thresh">&gt;= 70.00</td>
-                            <td><span class="{'badge-pass' if glare_pass else 'badge-flag'}">{'✔ PASS' if glare_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Flash reflection score is {glare_score_val:.1f} (specular area {glare_r*100:.2f}% vs max 70.0%)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">centering_occlusion</td>
-                            <td class="col-val">{center_score_val:.2f}</td>
-                            <td class="col-thresh">&gt;= 50.00</td>
-                            <td><span class="{'badge-pass' if center_pass else 'badge-flag'}">{'✔ PASS' if center_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Centering score is {center_score_val:.1f} (perimeter edge density {edge_dens:.1f}% vs max 50.0%)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">composite_quality</td>
-                            <td class="col-val">{comp_score_val:.2f}</td>
-                            <td class="col-thresh">&gt;= 50.00</td>
-                            <td><span class="{'badge-pass' if comp_pass else 'badge-flag'}">{'✔ PASS' if comp_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Overall composite quality is {comp_score_val:.1f}/100 (RE_IMAGE cutoff 50.0)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<details class="agent-card-container" open>
+<summary class="agent-card-header">
+<div class="agent-card-left">
+<div class="agent-badge-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">A1</div>
+<div>
+<div class="agent-title-text">Image Quality Agent</div>
+<div class="agent-subtitle-text">Image is usable for clinical assessment with optimal sharpness and illumination.</div>
+</div>
+</div>
+<div class="status-pill-badge" style="background: {a1_pill_bg}; color: {a1_pill_col}; border: 1px solid {a1_pill_bd};">
+{a1_disp} <span class="caret-icon">▾</span>
+</div>
+</summary>
+<div class="agent-card-narrative">
+Image Quality Agent evaluated capture integrity at {comp_score_val:.1f}/100 resulting in disposition '{a1_disp}'. Sharpness was measured at {blur_score_val:.1f}/100 (Laplacian variance {lap_v:.1f}) and illumination entropy at {light_score_val:.1f}/100. No significant specular voids or peripheral obstruction was detected.
+</div>
+<table class="clinical-eval-table">
+<thead>
+<tr>
+<th>FEATURE / RULE</th>
+<th>VALUE</th>
+<th>THRESHOLD</th>
+<th>STATUS</th>
+<th>CLINICAL NOTE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="col-feature">blur_sharpness</td>
+<td class="col-val">{blur_score_val:.2f}</td>
+<td class="col-thresh">&gt;= 40.00</td>
+<td><span class="{'badge-pass' if blur_pass else 'badge-flag'}">{'✔ PASS' if blur_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Sharpness score is {blur_score_val:.1f} (cutoff 40.0; LapVar={lap_v:.1f}, Tenengrad={tenengrad_v})</td>
+</tr>
+<tr>
+<td class="col-feature">lighting_entropy</td>
+<td class="col-val">{light_score_val:.2f}</td>
+<td class="col-thresh">&gt;= 4.50</td>
+<td><span class="{'badge-pass' if light_pass else 'badge-flag'}">{'✔ PASS' if light_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Lighting entropy score is {light_score_val:.1f} (cutoff 4.5; Entropy={img_entropy_bits:.2f} bits, Mean={mean_gray_val:.1f})</td>
+</tr>
+<tr>
+<td class="col-feature">specular_glare</td>
+<td class="col-val">{glare_score_val:.2f}</td>
+<td class="col-thresh">&gt;= 70.00</td>
+<td><span class="{'badge-pass' if glare_pass else 'badge-flag'}">{'✔ PASS' if glare_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Flash reflection score is {glare_score_val:.1f} (specular area {glare_r*100:.2f}% vs max 70.0%)</td>
+</tr>
+<tr>
+<td class="col-feature">centering_occlusion</td>
+<td class="col-val">{center_score_val:.2f}</td>
+<td class="col-thresh">&gt;= 50.00</td>
+<td><span class="{'badge-pass' if center_pass else 'badge-flag'}">{'✔ PASS' if center_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Centering score is {center_score_val:.1f} (perimeter edge density {edge_dens:.1f}% vs max 50.0%)</td>
+</tr>
+<tr>
+<td class="col-feature">composite_quality</td>
+<td class="col-val">{comp_score_val:.2f}</td>
+<td class="col-thresh">&gt;= 50.00</td>
+<td><span class="{'badge-pass' if comp_pass else 'badge-flag'}">{'✔ PASS' if comp_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Overall composite quality is {comp_score_val:.1f}/100 (RE_IMAGE cutoff 50.0)</td>
+</tr>
+</tbody>
+</table>
+</details>""", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
             # CARD 2: AGENT 2 - DIAGNOSIS AGENT (7 HAM10000 CODES)
@@ -1207,104 +1229,81 @@ with tab1:
             r_cum_pass = cum_malig_v <= 0.22
             r_mel_pass = mel_risk_v <= 0.18
             
-            top3_summary_html = f"""
-            <div style="font-size: 12px; margin-bottom: 12px; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
-                <strong>🏆 Top 3 Candidate Predictions:</strong> &nbsp;
-                1. <strong>{CLASS_DISPLAY_NAMES.get(top1_c, top1_c)}</strong> (<code>{top1_c}</code>): <strong>{top1_p*100:.1f}%</strong> &nbsp;|&nbsp;
-                2. <strong>{CLASS_DISPLAY_NAMES.get(top2_c, top2_c)}</strong> (<code>{top2_c}</code>): {top2_p*100:.1f}% &nbsp;|&nbsp;
-                3. <strong>{CLASS_DISPLAY_NAMES.get(top3_c, top3_c)}</strong> (<code>{top3_c}</code>): {top3_p*100:.1f}%
-            </div>
-            """
+            top3_summary_html = f'<div style="font-size: 12px; margin-bottom: 12px; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"><strong>🏆 Top 3 Candidate Predictions:</strong> &nbsp;1. <strong>{CLASS_DISPLAY_NAMES.get(top1_c, top1_c)}</strong> (<code>{top1_c}</code>): <strong>{top1_p*100:.1f}%</strong> &nbsp;|&nbsp; 2. <strong>{CLASS_DISPLAY_NAMES.get(top2_c, top2_c)}</strong> (<code>{top2_c}</code>): {top2_p*100:.1f}% &nbsp;|&nbsp; 3. <strong>{CLASS_DISPLAY_NAMES.get(top3_c, top3_c)}</strong> (<code>{top3_c}</code>): {top3_p*100:.1f}%</div>'
 
-            prob_bars_html = '<div class="prob-bar-container">'
-            for code, label, color in ham_classes:
-                prob_val = float(p_dict.get(code, 0.0))
-                pct_val = prob_val * 100.0
-                prob_bars_html += f"""
-                <div class="prob-row">
-                    <div class="prob-label">{label}</div>
-                    <div class="prob-track">
-                        <div class="prob-fill" style="width: {pct_val:.1f}%; background: {color};"></div>
-                    </div>
-                    <div class="prob-val-text">{pct_val:.1f}%</div>
-                </div>
-                """
-            prob_bars_html += """
-                <div class="prob-axis">
-                    <span>0%</span><span>10%</span><span>20%</span><span>30%</span><span>40%</span><span>50%</span><span>60%</span><span>70%</span><span>80%</span><span>90%</span><span>100%</span>
-                </div>
-            </div>
-            """
+            prob_rows = "".join([
+                f'<div class="prob-row"><div class="prob-label">{lbl}</div><div class="prob-track"><div class="prob-fill" style="width: {float(p_dict.get(c, 0.0))*100:.1f}%; background: {col};"></div></div><div class="prob-val-text">{float(p_dict.get(c, 0.0))*100:.1f}%</div></div>'
+                for c, lbl, col in ham_classes
+            ])
+            prob_bars_html = f'<div class="prob-bar-container">{prob_rows}<div class="prob-axis"><span>0%</span><span>10%</span><span>20%</span><span>30%</span><span>40%</span><span>50%</span><span>60%</span><span>70%</span><span>80%</span><span>90%</span><span>100%</span></div></div>'
 
-            st.markdown(f"""
-            <div class="agent-card-container">
-                <div class="agent-card-header">
-                    <div class="agent-card-left">
-                        <div class="agent-badge-icon" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">A2</div>
-                        <div>
-                            <div class="agent-title-text">Diagnosis Agent (7 HAM10000 Codes)</div>
-                            <div class="agent-subtitle-text">Model predicts {d_res['display_name']} [{d_res['predicted_class']}] with {d_res['confidence_pct']}% confidence.</div>
-                        </div>
-                    </div>
-                    <div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
-                        {d_res['predicted_class']} • {int(d_res['confidence_pct'])}% ▾
-                    </div>
-                </div>
-                <div class="agent-card-narrative">
-                    Diagnosis Agent classified the dermoscopic lesion as '{d_res['display_name']}' ({d_res['predicted_class']}) with {d_res['confidence_pct']}% primary probability. The top-2 candidate separation margin is {top2_margin_v:.3f} and Shannon entropy is {shannon_ent:.2f} bits ({certainty_str}). Cumulative malignancy probability is {cum_malig_v*100:.1f}% (Melanoma: {p_dict.get('mel', 0.0)*100:.1f}%, BCC: {p_dict.get('bcc', 0.0)*100:.1f}%, AKIEC: {p_dict.get('akiec', 0.0)*100:.1f}%).
-                </div>
-                {top3_summary_html}
-                {prob_bars_html}
-                <table class="clinical-eval-table">
-                    <thead>
-                        <tr>
-                            <th>FEATURE / RULE</th>
-                            <th>VALUE</th>
-                            <th>THRESHOLD</th>
-                            <th>STATUS</th>
-                            <th>CLINICAL NOTE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="col-feature">auto_triage_confidence</td>
-                            <td class="col-val">{top1_p:.2f}</td>
-                            <td class="col-thresh">&gt;= 0.80</td>
-                            <td><span class="{'badge-pass' if r_conf_pass else 'badge-flag'}">{'✔ PASS' if r_conf_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Primary confidence is {top1_p*100:.1f}% (hurdle: 80%)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">top2_margin</td>
-                            <td class="col-val">{top2_margin_v:.2f}</td>
-                            <td class="col-thresh">&gt;= 0.10</td>
-                            <td><span class="{'badge-pass' if r_margin_pass else 'badge-flag'}">{'✔ PASS' if r_margin_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Top-2 margin is {top2_margin_v:.3f} between '{top1_c}' and '{top2_c}' (min: 0.100)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">shannon_entropy</td>
-                            <td class="col-val">{shannon_ent:.2f}</td>
-                            <td class="col-thresh">&lt;= 1.65</td>
-                            <td><span class="{'badge-pass' if r_entropy_pass else 'badge-flag'}">{'✔ PASS' if r_entropy_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Distribution entropy is {shannon_ent:.2f} bits (max: 1.65 bits)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">cumulative_malignancy_risk</td>
-                            <td class="col-val">{cum_malig_v:.2f}</td>
-                            <td class="col-thresh">&lt;= 0.22</td>
-                            <td><span class="{'badge-pass' if r_cum_pass else 'badge-flag'}">{'✔ PASS' if r_cum_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Combined malignant risk (mel+bcc+akiec) is {cum_malig_v*100:.1f}% (cutoff: 22.0%)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">melanoma_risk</td>
-                            <td class="col-val">{mel_risk_v:.2f}</td>
-                            <td class="col-thresh">&lt;= 0.18</td>
-                            <td><span class="{'badge-pass' if r_mel_pass else 'badge-flag'}">{'✔ PASS' if r_mel_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Melanoma probability is {mel_risk_v*100:.1f}% (cutoff: 18.0%)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<details class="agent-card-container" open>
+<summary class="agent-card-header">
+<div class="agent-card-left">
+<div class="agent-badge-icon" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">A2</div>
+<div>
+<div class="agent-title-text">Diagnosis Agent (7 HAM10000 Codes)</div>
+<div class="agent-subtitle-text">Model predicts {d_res['display_name']} [{d_res['predicted_class']}] with {d_res['confidence_pct']}% confidence.</div>
+</div>
+</div>
+<div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
+{d_res['predicted_class']} • {int(d_res['confidence_pct'])}% <span class="caret-icon">▾</span>
+</div>
+</summary>
+<div class="agent-card-narrative">
+Diagnosis Agent classified the dermoscopic lesion as '{d_res['display_name']}' ({d_res['predicted_class']}) with {d_res['confidence_pct']}% primary probability. The top-2 candidate separation margin is {top2_margin_v:.3f} and Shannon entropy is {shannon_ent:.2f} bits ({certainty_str}). Cumulative malignancy probability is {cum_malig_v*100:.1f}% (Melanoma: {p_dict.get('mel', 0.0)*100:.1f}%, BCC: {p_dict.get('bcc', 0.0)*100:.1f}%, AKIEC: {p_dict.get('akiec', 0.0)*100:.1f}%).
+</div>
+{top3_summary_html}
+{prob_bars_html}
+<table class="clinical-eval-table">
+<thead>
+<tr>
+<th>FEATURE / RULE</th>
+<th>VALUE</th>
+<th>THRESHOLD</th>
+<th>STATUS</th>
+<th>CLINICAL NOTE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="col-feature">auto_triage_confidence</td>
+<td class="col-val">{top1_p:.2f}</td>
+<td class="col-thresh">&gt;= 0.80</td>
+<td><span class="{'badge-pass' if r_conf_pass else 'badge-flag'}">{'✔ PASS' if r_conf_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Primary confidence is {top1_p*100:.1f}% (hurdle: 80%)</td>
+</tr>
+<tr>
+<td class="col-feature">top2_margin</td>
+<td class="col-val">{top2_margin_v:.2f}</td>
+<td class="col-thresh">&gt;= 0.10</td>
+<td><span class="{'badge-pass' if r_margin_pass else 'badge-flag'}">{'✔ PASS' if r_margin_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Top-2 margin is {top2_margin_v:.3f} between '{top1_c}' and '{top2_c}' (min: 0.100)</td>
+</tr>
+<tr>
+<td class="col-feature">shannon_entropy</td>
+<td class="col-val">{shannon_ent:.2f}</td>
+<td class="col-thresh">&lt;= 1.65</td>
+<td><span class="{'badge-pass' if r_entropy_pass else 'badge-flag'}">{'✔ PASS' if r_entropy_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Distribution entropy is {shannon_ent:.2f} bits (max: 1.65 bits)</td>
+</tr>
+<tr>
+<td class="col-feature">cumulative_malignancy_risk</td>
+<td class="col-val">{cum_malig_v:.2f}</td>
+<td class="col-thresh">&lt;= 0.22</td>
+<td><span class="{'badge-pass' if r_cum_pass else 'badge-flag'}">{'✔ PASS' if r_cum_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Combined malignant risk (mel+bcc+akiec) is {cum_malig_v*100:.1f}% (cutoff: 22.0%)</td>
+</tr>
+<tr>
+<td class="col-feature">melanoma_risk</td>
+<td class="col-val">{mel_risk_v:.2f}</td>
+<td class="col-thresh">&lt;= 0.18</td>
+<td><span class="{'badge-pass' if r_mel_pass else 'badge-flag'}">{'✔ PASS' if r_mel_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Melanoma probability is {mel_risk_v*100:.1f}% (cutoff: 18.0%)</td>
+</tr>
+</tbody>
+</table>
+</details>""", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
             # CARD 3: AGENT 3 - LESION ANALYSIS AGENT (DERMOSCOPIC ABCD)
@@ -1341,83 +1340,81 @@ with tab1:
             rel_flags = l_res.get("reliability_flags", ["Adequate pixel resolution", "Contour closed", "High diagnostic reliability"])
             rel_flags_html = " ".join([f'<span class="evidence-pill">🏷️ {f}</span>' for f in rel_flags])
             
-            st.markdown(f"""
-            <div class="agent-card-container">
-                <div class="agent-card-header">
-                    <div class="agent-card-left">
-                        <div class="agent-badge-icon" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">A3</div>
-                        <div>
-                            <div class="agent-title-text">Lesion Analysis Agent (Dermoscopic ABCD)</div>
-                            <div class="agent-subtitle-text">Lesion exhibits intermediate structural complexity warranting caution.</div>
-                        </div>
-                    </div>
-                    <div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
-                        {a3_pill_txt} ▾
-                    </div>
-                </div>
-                <div class="agent-card-narrative">
-                    Lesion Analysis Agent computed an ABCD suspicion score of {a3_susp:.2f} (TDS={tds_val:.2f}, {a3_pill_txt} / SUSPICIOUS). Border compactness was evaluated at {border_comp_v:.2f} ({octants_str} notched octants) with {asym_axes_str} geometric asymmetry axes. Color analysis revealed 3/6 distinct dermoscopic pigments across a lesion area of {area_coverage_v:.1f}%.
-                </div>
-                <div class="evidence-box">
-                    <div style="font-size: 11px; font-weight: 700; color: #fbbf24; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Agent 3 Demonstrable Feature Evidence Dictionary:</div>
-                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {text_color}; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;">
-                        {json.dumps(f_evidence_disp)}
-                    </div>
-                    <div style="font-size: 11px; font-weight: 700; color: #a78bfa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🚩 Clinical Reliability Flags:</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                        {rel_flags_html}
-                    </div>
-                </div>
-                <table class="clinical-eval-table">
-                    <thead>
-                        <tr>
-                            <th>FEATURE / RULE</th>
-                            <th>VALUE</th>
-                            <th>THRESHOLD</th>
-                            <th>STATUS</th>
-                            <th>CLINICAL NOTE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="col-feature">border_irregularity</td>
-                            <td class="col-val">{border_comp_v:.2f}</td>
-                            <td class="col-thresh">&lt;= 1.60</td>
-                            <td><span class="{'badge-flag' if border_flag else 'badge-pass'}">{'▲ FLAG' if border_flag else '✔ PASS'}</span></td>
-                            <td class="col-note">Border compactness is {border_comp_v:.2f} (cutoff 1.60; score {octants_str} octants)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">geometric_asymmetry</td>
-                            <td class="col-val">{asym_fold_v:.2f}</td>
-                            <td class="col-thresh">&lt;= 0.35</td>
-                            <td><span class="{'badge-pass' if asym_pass else 'badge-flag'}">{'✔ PASS' if asym_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Asymmetry fold ratio is {asym_fold_v:.2f} ({asym_axes_str} axes with significant difference)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">color_variegation</td>
-                            <td class="col-val">{color_std_v:.2f}</td>
-                            <td class="col-thresh">&lt;= 32.00</td>
-                            <td><span class="{'badge-flag' if color_flag else 'badge-pass'}">{'▲ FLAG' if color_flag else '✔ PASS'}</span></td>
-                            <td class="col-note">Color standard deviation is {color_std_v:.1f} (3/6 chromophores: White (Depigmentation), Red (Erythema / Neovessels))</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">total_dermoscopy_score</td>
-                            <td class="col-val">{tds_val:.2f}</td>
-                            <td class="col-thresh">&lt;= 5.45</td>
-                            <td><span class="{'badge-pass' if tds_pass else 'badge-flag'}">{'✔ PASS' if tds_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Stolz TDS score is {tds_val:.2f} (benign upper: 4.75, suspicious upper: 5.45)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">lesion_area_fraction</td>
-                            <td class="col-val">{area_coverage_v:.2f}</td>
-                            <td class="col-thresh">&gt;= 2.00</td>
-                            <td><span class="{'badge-pass' if area_pass else 'badge-flag'}">{'✔ PASS' if area_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Lesion covers {area_coverage_v:.1f}% of image field (min reliability 2.0%)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<details class="agent-card-container" open>
+<summary class="agent-card-header">
+<div class="agent-card-left">
+<div class="agent-badge-icon" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">A3</div>
+<div>
+<div class="agent-title-text">Lesion Analysis Agent (Dermoscopic ABCD)</div>
+<div class="agent-subtitle-text">Lesion exhibits intermediate structural complexity warranting caution.</div>
+</div>
+</div>
+<div class="status-pill-badge" style="background: #3b0764; color: #c084fc; border: 1px solid #7e22ce;">
+{a3_pill_txt} <span class="caret-icon">▾</span>
+</div>
+</summary>
+<div class="agent-card-narrative">
+Lesion Analysis Agent computed an ABCD suspicion score of {a3_susp:.2f} (TDS={tds_val:.2f}, {a3_pill_txt} / SUSPICIOUS). Border compactness was evaluated at {border_comp_v:.2f} ({octants_str} notched octants) with {asym_axes_str} geometric asymmetry axes. Color analysis revealed 3/6 distinct dermoscopic pigments across a lesion area of {area_coverage_v:.1f}%.
+</div>
+<div class="evidence-box">
+<div style="font-size: 11px; font-weight: 700; color: #fbbf24; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Agent 3 Demonstrable Feature Evidence Dictionary:</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: {text_color}; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;">
+{json.dumps(f_evidence_disp)}
+</div>
+<div style="font-size: 11px; font-weight: 700; color: #a78bfa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🚩 Clinical Reliability Flags:</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;">
+{rel_flags_html}
+</div>
+</div>
+<table class="clinical-eval-table">
+<thead>
+<tr>
+<th>FEATURE / RULE</th>
+<th>VALUE</th>
+<th>THRESHOLD</th>
+<th>STATUS</th>
+<th>CLINICAL NOTE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="col-feature">border_irregularity</td>
+<td class="col-val">{border_comp_v:.2f}</td>
+<td class="col-thresh">&lt;= 1.60</td>
+<td><span class="{'badge-flag' if border_flag else 'badge-pass'}">{'▲ FLAG' if border_flag else '✔ PASS'}</span></td>
+<td class="col-note">Border compactness is {border_comp_v:.2f} (cutoff 1.60; score {octants_str} octants)</td>
+</tr>
+<tr>
+<td class="col-feature">geometric_asymmetry</td>
+<td class="col-val">{asym_fold_v:.2f}</td>
+<td class="col-thresh">&lt;= 0.35</td>
+<td><span class="{'badge-pass' if asym_pass else 'badge-flag'}">{'✔ PASS' if asym_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Asymmetry fold ratio is {asym_fold_v:.2f} ({asym_axes_str} axes with significant difference)</td>
+</tr>
+<tr>
+<td class="col-feature">color_variegation</td>
+<td class="col-val">{color_std_v:.2f}</td>
+<td class="col-thresh">&lt;= 32.00</td>
+<td><span class="{'badge-flag' if color_flag else 'badge-pass'}">{'▲ FLAG' if color_flag else '✔ PASS'}</span></td>
+<td class="col-note">Color standard deviation is {color_std_v:.1f} (3/6 chromophores: White (Depigmentation), Red (Erythema / Neovessels))</td>
+</tr>
+<tr>
+<td class="col-feature">total_dermoscopy_score</td>
+<td class="col-val">{tds_val:.2f}</td>
+<td class="col-thresh">&lt;= 5.45</td>
+<td><span class="{'badge-pass' if tds_pass else 'badge-flag'}">{'✔ PASS' if tds_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Stolz TDS score is {tds_val:.2f} (benign upper: 4.75, suspicious upper: 5.45)</td>
+</tr>
+<tr>
+<td class="col-feature">lesion_area_fraction</td>
+<td class="col-val">{area_coverage_v:.2f}</td>
+<td class="col-thresh">&gt;= 2.00</td>
+<td><span class="{'badge-pass' if area_pass else 'badge-flag'}">{'✔ PASS' if area_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Lesion covers {area_coverage_v:.1f}% of image field (min reliability 2.0%)</td>
+</tr>
+</tbody>
+</table>
+</details>""", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
             # CARD 4: AGENT 4 - CONTEXT & DEMOGRAPHICS AGENT
@@ -1442,76 +1439,74 @@ with tab1:
             ])
             a4_evidence_html = "".join([f"<li style='margin-bottom:3px;'>{ev}</li>" for ev in a4_evidence_list])
             
-            st.markdown(f"""
-            <div class="agent-card-container">
-                <div class="agent-card-header">
-                    <div class="agent-card-left">
-                        <div class="agent-badge-icon" style="background: rgba(147, 51, 234, 0.2); color: #d8b4fe;">A4</div>
-                        <div>
-                            <div class="agent-title-text">Context & Demographics Agent</div>
-                            <div class="agent-subtitle-text">Patient presentation exhibits {demo_tier_str} demographic risk based on age, anatomical site, and solar UV history.</div>
-                        </div>
-                    </div>
-                    <div class="status-pill-badge" style="background: {demo_pill_bg}; color: {demo_pill_col}; border: 1px solid {demo_pill_bd};">
-                        {demo_tier_str} ▾
-                    </div>
-                </div>
-                <div class="agent-card-narrative">
-                    Context & Demographics Agent evaluated clinical risk at {demo_risk_v:.2f}/1.0 ({demo_tier_str}). Patient is {int(demo_age)} years old presenting with lesion at '{demo_site}'. Young adult ({int(demo_age)} yrs): Benign melanocytic nevi are prevalent; new or evolving lesions warrant monitoring.
-                </div>
-                <div class="evidence-box">
-                    <div style="font-size: 11px; font-weight: 700; color: #d8b4fe; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Agent 4 Context Evidence:</div>
-                    <ul style="font-size: 12px; margin: 4px 0 8px 18px; padding: 0; color: {subtext_color};">
-                        {a4_evidence_html}
-                    </ul>
-                    <div style="font-size: 11px; font-weight: 700; color: #34d399; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🚩 Missing-Field Audit:</div>
-                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {text_color}; background: rgba(0,0,0,0.25); padding: 5px 8px; border-radius: 6px;">
-                        age_missing={a4_missing_flags.get('age_missing', False)} • sex_missing={a4_missing_flags.get('sex_missing', False)} • localization_missing={a4_missing_flags.get('localization_missing', False)} ({a4_missing_flags.get('missing_count', 0)} missing fields)
-                    </div>
-                </div>
-                <table class="clinical-eval-table">
-                    <thead>
-                        <tr>
-                            <th>FEATURE / RULE</th>
-                            <th>VALUE</th>
-                            <th>THRESHOLD</th>
-                            <th>STATUS</th>
-                            <th>CLINICAL NOTE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="col-feature">patient_age_risk</td>
-                            <td class="col-val">{demo_age:.2f}</td>
-                            <td class="col-thresh">&lt; 60.00</td>
-                            <td><span class="{'badge-pass' if age_pass else 'badge-flag'}">{'✔ PASS' if age_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Age is {int(demo_age)} yrs (senior cutoff: 60 yrs, geriatric cutoff: 75 yrs)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">anatomical_site_risk</td>
-                            <td class="col-val">{demo_site}</td>
-                            <td class="col-thresh">not in acral,scalp,neck,ear,face</td>
-                            <td><span class="{'badge-pass' if site_pass else 'badge-flag'}">{'✔ PASS' if site_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Location is '{demo_site}' (high risk sites: acral, ear, face, neck, scalp)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">demographic_risk_score</td>
-                            <td class="col-val">{demo_risk_v:.2f}</td>
-                            <td class="col-thresh">&lt; 0.70</td>
-                            <td><span class="{'badge-pass' if demo_risk_pass else 'badge-flag'}">{'✔ PASS' if demo_risk_pass else '▲ FLAG'}</span></td>
-                            <td class="col-note">Context cumulative risk score is {demo_risk_v:.2f} (MODERATE &gt;= 0.45, HIGH &gt;= 0.70)</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">demographic_completeness</td>
-                            <td class="col-val">100.00</td>
-                            <td class="col-thresh">== 100.00</td>
-                            <td><span class="badge-pass">✔ PASS</span></td>
-                            <td class="col-note">Demographic chart completeness is 100% (0 missing fields flagged)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<details class="agent-card-container" open>
+<summary class="agent-card-header">
+<div class="agent-card-left">
+<div class="agent-badge-icon" style="background: rgba(147, 51, 234, 0.2); color: #d8b4fe;">A4</div>
+<div>
+<div class="agent-title-text">Context & Demographics Agent</div>
+<div class="agent-subtitle-text">Patient presentation exhibits {demo_tier_str} demographic risk based on age, anatomical site, and solar UV history.</div>
+</div>
+</div>
+<div class="status-pill-badge" style="background: {demo_pill_bg}; color: {demo_pill_col}; border: 1px solid {demo_pill_bd};">
+{demo_tier_str} <span class="caret-icon">▾</span>
+</div>
+</summary>
+<div class="agent-card-narrative">
+Context & Demographics Agent evaluated clinical risk at {demo_risk_v:.2f}/1.0 ({demo_tier_str}). Patient is {int(demo_age)} years old presenting with lesion at '{demo_site}'. Young adult ({int(demo_age)} yrs): Benign melanocytic nevi are prevalent; new or evolving lesions warrant monitoring.
+</div>
+<div class="evidence-box">
+<div style="font-size: 11px; font-weight: 700; color: #d8b4fe; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">📋 Agent 4 Context Evidence:</div>
+<ul style="font-size: 12px; margin: 4px 0 8px 18px; padding: 0; color: {subtext_color};">
+{a4_evidence_html}
+</ul>
+<div style="font-size: 11px; font-weight: 700; color: #34d399; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">🚩 Missing-Field Audit:</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {text_color}; background: rgba(0,0,0,0.25); padding: 5px 8px; border-radius: 6px;">
+age_missing={a4_missing_flags.get('age_missing', False)} • sex_missing={a4_missing_flags.get('sex_missing', False)} • localization_missing={a4_missing_flags.get('localization_missing', False)} ({a4_missing_flags.get('missing_count', 0)} missing fields)
+</div>
+</div>
+<table class="clinical-eval-table">
+<thead>
+<tr>
+<th>FEATURE / RULE</th>
+<th>VALUE</th>
+<th>THRESHOLD</th>
+<th>STATUS</th>
+<th>CLINICAL NOTE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="col-feature">patient_age_risk</td>
+<td class="col-val">{demo_age:.2f}</td>
+<td class="col-thresh">&lt; 60.00</td>
+<td><span class="{'badge-pass' if age_pass else 'badge-flag'}">{'✔ PASS' if age_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Age is {int(demo_age)} yrs (senior cutoff: 60 yrs, geriatric cutoff: 75 yrs)</td>
+</tr>
+<tr>
+<td class="col-feature">anatomical_site_risk</td>
+<td class="col-val">{demo_site}</td>
+<td class="col-thresh">not in acral,scalp,neck,ear,face</td>
+<td><span class="{'badge-pass' if site_pass else 'badge-flag'}">{'✔ PASS' if site_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Location is '{demo_site}' (high risk sites: acral, ear, face, neck, scalp)</td>
+</tr>
+<tr>
+<td class="col-feature">demographic_risk_score</td>
+<td class="col-val">{demo_risk_v:.2f}</td>
+<td class="col-thresh">&lt; 0.70</td>
+<td><span class="{'badge-pass' if demo_risk_pass else 'badge-flag'}">{'✔ PASS' if demo_risk_pass else '▲ FLAG'}</span></td>
+<td class="col-note">Context cumulative risk score is {demo_risk_v:.2f} (MODERATE &gt;= 0.45, HIGH &gt;= 0.70)</td>
+</tr>
+<tr>
+<td class="col-feature">demographic_completeness</td>
+<td class="col-val">100.00</td>
+<td class="col-thresh">== 100.00</td>
+<td><span class="badge-pass">✔ PASS</span></td>
+<td class="col-note">Demographic chart completeness is 100% (0 missing fields flagged)</td>
+</tr>
+</tbody>
+</table>
+</details>""", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
             # CARD 5: AGENT 5 - SAFETY AGENT (GUARDRAILS S1-S6)
@@ -1536,77 +1531,78 @@ with tab1:
             s5_note = "Capture Degradation Discharge Block: Severe optical defect requires specimen recapture." if s5_flag else "Capture Degradation Discharge Block: Image quality meets screening requirements."
             s6_note = "Test-Time Augmentation Disagreement: Test-time view predictions are geometrically stable."
 
-            st.markdown(f"""
-            <div class="agent-card-container">
-                <div class="agent-card-header">
-                    <div class="agent-card-left">
-                        <div class="agent-badge-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">A5</div>
-                        <div>
-                            <div class="agent-title-text">Safety Agent (Guardrails S1-S6)</div>
-                            <div class="agent-subtitle-text">Clinical audit of 6 safety rules across multi-modal evidence.</div>
-                        </div>
-                    </div>
-                    <div class="status-pill-badge" style="background: {a5_pill_bg}; color: {a5_pill_col}; border: 1px solid {a5_pill_bd};">
-                        {a5_status_pill} ▾
-                    </div>
-                </div>
-                <table class="clinical-eval-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 80px;">RULE</th>
-                            <th style="width: 80px;">VALUE</th>
-                            <th style="width: 100px;">THRESHOLD</th>
-                            <th style="width: 100px;">STATUS</th>
-                            <th>CLINICAL NOTE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="col-feature">S1</td>
-                            <td class="col-val">{str(s1_flag).lower()}</td>
-                            <td class="col-thresh">== false</td>
-                            <td><span class="{'badge-flag' if s1_flag else 'badge-pass'}">{'▲ FLAG' if s1_flag else '✔ PASS'}</span></td>
-                            <td class="col-note">{s1_note}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">S2</td>
-                            <td class="col-val">{str(s2_flag).lower()}</td>
-                            <td class="col-thresh">== false</td>
-                            <td><span class="{'badge-flag' if s2_flag else 'badge-pass'}">{'▲ FLAG' if s2_flag else '✔ PASS'}</span></td>
-                            <td class="col-note">{s2_note}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">S3</td>
-                            <td class="col-val">{str(s3_flag).lower()}</td>
-                            <td class="col-thresh">== false</td>
-                            <td><span class="{'badge-flag' if s3_flag else 'badge-pass'}">{'▲ FLAG' if s3_flag else '✔ PASS'}</span></td>
-                            <td class="col-note">{s3_note}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">S4</td>
-                            <td class="col-val">{str(s4_flag).lower()}</td>
-                            <td class="col-thresh">== false</td>
-                            <td><span class="{'badge-flag' if s4_flag else 'badge-pass'}">{'▲ FLAG' if s4_flag else '✔ PASS'}</span></td>
-                            <td class="col-note">{s4_note}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">S5</td>
-                            <td class="col-val">{str(s5_flag).lower()}</td>
-                            <td class="col-thresh">== false</td>
-                            <td><span class="{'badge-flag' if s5_flag else 'badge-pass'}">{'▲ FLAG' if s5_flag else '✔ PASS'}</span></td>
-                            <td class="col-note">{s5_note}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">S6</td>
-                            <td class="col-val">false</td>
-                            <td class="col-thresh">== false</td>
-                            <td><span class="badge-pass">✔ PASS</span></td>
-                            <td class="col-note">{s6_note}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<details class="agent-card-container" open>
+<summary class="agent-card-header">
+<div class="agent-card-left">
+<div class="agent-badge-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">A5</div>
+<div>
+<div class="agent-title-text">Safety Agent (Guardrails S1-S6)</div>
+<div class="agent-subtitle-text">Clinical audit of 6 safety rules across multi-modal evidence.</div>
+</div>
+</div>
+<div class="status-pill-badge" style="background: {a5_pill_bg}; color: {a5_pill_col}; border: 1px solid {a5_pill_bd};">
+{a5_status_pill} <span class="caret-icon">▾</span>
+</div>
+</summary>
+<div class="agent-card-narrative">
+Safety Agent evaluated multi-modal clinical signals across 6 deterministic safety rules (S1-S6). Veto status: <strong>{a5_status_pill}</strong>. Active trigger: <code>{s_res.get('primary_trigger', 'NONE (All Checks Cleared)')}</code>. Clinical rationale: {s_res.get('justification', 'No safety vetoes triggered.')}
+</div>
+<table class="clinical-eval-table">
+<thead>
+<tr>
+<th style="width: 80px;">RULE</th>
+<th style="width: 80px;">VALUE</th>
+<th style="width: 100px;">THRESHOLD</th>
+<th style="width: 100px;">STATUS</th>
+<th>CLINICAL NOTE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="col-feature">S1</td>
+<td class="col-val">{str(s1_flag).lower()}</td>
+<td class="col-thresh">== false</td>
+<td><span class="{'badge-flag' if s1_flag else 'badge-pass'}">{'▲ FLAG' if s1_flag else '✔ PASS'}</span></td>
+<td class="col-note">{s1_note}</td>
+</tr>
+<tr>
+<td class="col-feature">S2</td>
+<td class="col-val">{str(s2_flag).lower()}</td>
+<td class="col-thresh">== false</td>
+<td><span class="{'badge-flag' if s2_flag else 'badge-pass'}">{'▲ FLAG' if s2_flag else '✔ PASS'}</span></td>
+<td class="col-note">{s2_note}</td>
+</tr>
+<tr>
+<td class="col-feature">S3</td>
+<td class="col-val">{str(s3_flag).lower()}</td>
+<td class="col-thresh">== false</td>
+<td><span class="{'badge-flag' if s3_flag else 'badge-pass'}">{'▲ FLAG' if s3_flag else '✔ PASS'}</span></td>
+<td class="col-note">{s3_note}</td>
+</tr>
+<tr>
+<td class="col-feature">S4</td>
+<td class="col-val">{str(s4_flag).lower()}</td>
+<td class="col-thresh">== false</td>
+<td><span class="{'badge-flag' if s4_flag else 'badge-pass'}">{'▲ FLAG' if s4_flag else '✔ PASS'}</span></td>
+<td class="col-note">{s4_note}</td>
+</tr>
+<tr>
+<td class="col-feature">S5</td>
+<td class="col-val">{str(s5_flag).lower()}</td>
+<td class="col-thresh">== false</td>
+<td><span class="{'badge-flag' if s5_flag else 'badge-pass'}">{'▲ FLAG' if s5_flag else '✔ PASS'}</span></td>
+<td class="col-note">{s5_note}</td>
+</tr>
+<tr>
+<td class="col-feature">S6</td>
+<td class="col-val">false</td>
+<td class="col-thresh">== false</td>
+<td><span class="badge-pass">✔ PASS</span></td>
+<td class="col-note">{s6_note}</td>
+</tr>
+</tbody>
+</table>
+</details>""", unsafe_allow_html=True)
 
             # ------------------------------------------------------------------
             # CARD 6: AGENT 6 - COORDINATOR AGENT (POLICY ENGINE)
@@ -1634,52 +1630,50 @@ with tab1:
                 p_rule_desc = "Unanimous benign consensus across all 6 specialized agents."
                 extra_note = "Sufficient reliable evidence for automated discharge; routine follow-up indicated."
 
-            st.markdown(f"""
-            <div class="agent-card-container">
-                <div class="agent-card-header">
-                    <div class="agent-card-left">
-                        <div class="agent-badge-icon" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">A6</div>
-                        <div>
-                            <div class="agent-title-text">Coordinator Agent (Policy Engine)</div>
-                            <div class="agent-subtitle-text">Final disposition is {c_dec} with diagnosis '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] ({d_res['confidence_pct']}% confidence).</div>
-                        </div>
-                    </div>
-                    <div class="status-pill-badge" style="background: {c_pill_bg}; color: {c_pill_col}; border: 1px solid {c_pill_bd};">
-                        {c_dec} ▾
-                    </div>
-                </div>
-                <div class="agent-card-narrative">
-                    Coordinator Agent synthesized outputs from all 5 agents and executed {p_rule_name}: {p_rule_desc} The final diagnosis is confirmed as '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] with disposition '{c_dec}'. {extra_note}
-                </div>
-                <table class="clinical-eval-table">
-                    <thead>
-                        <tr>
-                            <th>FEATURE / RULE</th>
-                            <th>VALUE</th>
-                            <th>THRESHOLD</th>
-                            <th>STATUS</th>
-                            <th>CLINICAL NOTE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="col-feature">policy_decision</td>
-                            <td class="col-val">{c_dec}</td>
-                            <td class="col-thresh">== AUTO_TRIAGE / REFER / RE_IMAGE</td>
-                            <td><span class="badge-pass">✔ PASS</span></td>
-                            <td class="col-note">Coordinator applied {p_rule_name}: {p_rule_desc}</td>
-                        </tr>
-                        <tr>
-                            <td class="col-feature">predicted_class_code</td>
-                            <td class="col-val">{coord_res['final_predicted_label']}</td>
-                            <td class="col-thresh">in 7 HAM10000 codes</td>
-                            <td><span class="badge-pass">✔ PASS</span></td>
-                            <td class="col-note">Preserved diagnostic classification: '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] ({d_res['confidence_pct']}%)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<details class="agent-card-container" open>
+<summary class="agent-card-header">
+<div class="agent-card-left">
+<div class="agent-badge-icon" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">A6</div>
+<div>
+<div class="agent-title-text">Coordinator Agent (Policy Engine)</div>
+<div class="agent-subtitle-text">Final disposition is {c_dec} with diagnosis '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] ({d_res['confidence_pct']}% confidence).</div>
+</div>
+</div>
+<div class="status-pill-badge" style="background: {c_pill_bg}; color: {c_pill_col}; border: 1px solid {c_pill_bd};">
+{c_dec} <span class="caret-icon">▾</span>
+</div>
+</summary>
+<div class="agent-card-narrative">
+Coordinator Agent synthesized outputs from all 5 agents and executed {p_rule_name}: {p_rule_desc} The final diagnosis is confirmed as '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] with disposition '{c_dec}'. {extra_note}
+</div>
+<table class="clinical-eval-table">
+<thead>
+<tr>
+<th>FEATURE / RULE</th>
+<th>VALUE</th>
+<th>THRESHOLD</th>
+<th>STATUS</th>
+<th>CLINICAL NOTE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="col-feature">policy_decision</td>
+<td class="col-val">{c_dec}</td>
+<td class="col-thresh">== AUTO_TRIAGE / REFER / RE_IMAGE</td>
+<td><span class="badge-pass">✔ PASS</span></td>
+<td class="col-note">Coordinator applied {p_rule_name}: {p_rule_desc}</td>
+</tr>
+<tr>
+<td class="col-feature">predicted_class_code</td>
+<td class="col-val">{coord_res['final_predicted_label']}</td>
+<td class="col-thresh">in 7 HAM10000 codes</td>
+<td><span class="badge-pass">✔ PASS</span></td>
+<td class="col-note">Preserved diagnostic classification: '{coord_res['final_predicted_name']}' [{coord_res['final_predicted_label']}] ({d_res['confidence_pct']}%)</td>
+</tr>
+</tbody>
+</table>
+</details>""", unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------------------
