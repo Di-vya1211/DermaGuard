@@ -252,12 +252,12 @@ def generate_benchmark_records():
     with open(RESULTS_PATH, "w") as f:
         json.dump(results, f, indent=2)
 
-    # Save summary payload formatted for summit Level 1 submission
+    # Save benchmark summary payload
     champ = results["efficientnet_b0"]
     summary_payload = {
         "summit": "Jaypee Agentic AI International Summit 2026",
         "track": "Track 2 - Healthcare (Agentic DermaGuard)",
-        "level": 1,
+        "version": "2.0",
         "date": "2026-10-30",
         "best_model": champ["display_name"],
         "validation_samples": n_samples,
@@ -311,5 +311,5 @@ if __name__ == "__main__":
     print(df_comp.to_string(index=False))
     print(f"\nSaved comparison to: {COMPARISON_PATH}")
     print(f"Saved detailed results to: {RESULTS_PATH}")
-    print(f"Saved Level 1 submission summary to: {SUMMARY_PATH}")
+    print(f"Saved benchmark summary to: {SUMMARY_PATH}")
     print(f"Saved champion checkpoint to: {CHECKPOINT_DIR / 'best_model.pt'}")

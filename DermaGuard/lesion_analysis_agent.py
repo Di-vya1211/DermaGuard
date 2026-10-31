@@ -1,6 +1,6 @@
 """
 Agentic DermaGuard - Agent 3: Lesion Analysis Agent
-Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026 (Day 2 / Level 2)
+Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026
 
 Role:
   Evaluates objective computer vision dermoscopic features inspired by clinical ABCD criteria:

@@ -1,6 +1,6 @@
 """
 Agentic DermaGuard - Agent 5: Safety Agent
-Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026 (Day 2 / Level 2)
+Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026
 
 Role:
   Acts as an autonomous clinical safety auditor.

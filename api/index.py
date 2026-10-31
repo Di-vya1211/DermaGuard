@@ -597,7 +597,7 @@ HTML_PAGE = """<!DOCTYPE html>
         <div style="margin-top: auto; font-size: 11px; color: var(--subtext-color); line-height: 1.4;">
             <strong>Track 2: Healthcare</strong><br>
             Jaypee Agentic AI Summit 2026<br>
-            Version: 2.0 (Day 2 Multi-Agent Gating)
+            Version: 2.0 (Multi-Agent Clinical Gating)
         </div>
     </aside>
 
@@ -605,7 +605,7 @@ HTML_PAGE = """<!DOCTYPE html>
     <main>
         <!-- Hero Header -->
         <div class="hero-banner">
-            <div class="hero-badge">Jaypee Agentic AI International Summit 2026 • Day 2 / Level 2</div>
+            <div class="hero-badge">Jaypee Agentic AI International Summit 2026 • Multi-Agent Screening Platform</div>
             <h1 class="hero-title">Agentic DermaGuard: Complete Six-Agent Screening System</h1>
             <p class="hero-desc">Integrated Autonomous Dermatology Pipeline: Quality Sentinel + Diagnosis Backbone + Lesion Morphology + Context Reasoning + Safety Veto + Chief Coordinator</p>
             <div class="pill-row">
@@ -621,7 +621,7 @@ HTML_PAGE = """<!DOCTYPE html>
             <button class="tab-btn active" onclick="openTab('tab1', this)">🔬 Six-Agent Screening & Triage</button>
             <button class="tab-btn" onclick="openTab('tab2', this)">🤖 The Six-Agent System Architecture</button>
             <button class="tab-btn" onclick="openTab('tab3', this)">📊 Clinical Performance & Benchmark Analytics</button>
-            <button class="tab-btn" onclick="openTab('tab4', this)">📁 Final CSV Submission (Day 2 Upload)</button>
+            <button class="tab-btn" onclick="openTab('tab4', this)">📁 Official CSV Submission & Export</button>
             <button class="tab-btn" onclick="openTab('tab5', this)">📐 Calibrated Thresholds & Rationale</button>
         </div>
 
@@ -713,7 +713,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
         <!-- TAB 4: FINAL CSV SUBMISSION -->
         <div id="tab4" class="tab-panel">
-            <h3 style="margin-bottom: 8px;">📁 Final CSV Submission (Day 2 Upload)</h3>
+            <h3 style="margin-bottom: 8px;">📁 Official CSV Submission & Export</h3>
             <p style="color: var(--subtext-color); font-size: 13.5px; margin-bottom: 16px;">
                 Exact 3-column CSV format (<code>image_id, prediction, decision</code>) ready for upload:
             </p>

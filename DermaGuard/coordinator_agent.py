@@ -1,6 +1,6 @@
 """
 Agentic DermaGuard - Agent 6: Chief Coordinator Agent
-Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026 (Day 2 / Level 2)
+Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026
 
 Role:
   Synthesizes evidence from all five specialized agents:
@@ -13,7 +13,7 @@ Role:
     - final_predicted_label: The authoritative lesion diagnosis code
     - decision: AUTO_TRIAGE, REFER, or RE_IMAGE
     - traceable_rationale: Complete multi-agent audit trail
-    - flow_summary: 5-stage pipeline summary matching Day 2 brief specification
+    - flow_summary: 5-stage pipeline summary for clinical triage
 """
 
 from typing import Dict, Any, List
@@ -93,7 +93,7 @@ class CoordinatorAgent:
             )
 
         # ----------------------------------------------------------------------
-        # Assemble Flow Card Summary (Matching Day 2 Brief Specimen Cards)
+        # Assemble Flow Card Summary (Multi-Agent Clinical Pipeline)
         # ----------------------------------------------------------------------
         # A1 Card
         a1_card_status = "PASS" if q_status in ["GOOD", "ACCEPTABLE"] else "FAIL"

@@ -1,6 +1,6 @@
 """
 Agentic DermaGuard - Six-Agent Validation Evaluation & Metrics Generator
-Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026 (Day 2 / Level 2)
+Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026
 
 Evaluates all SIX specialized agents on the 1,942 validation images:
   - A1: Image Quality Agent
@@ -10,7 +10,7 @@ Evaluates all SIX specialized agents on the 1,942 validation images:
   - A5: Safety Agent
   - A6: Coordinator Agent
 
-Calculates exact requirements for Day 2 Technical Evaluation & Panel Presentation:
+Calculates clinical benchmarks for panel presentation and reporting:
   1. Correct Auto-Triage count (Auto-Triage where predicted class matches ground truth label)
   2. Incorrect Auto-Triage count (Auto-Triage with a mismatching prediction)
   3. Total Number of REFERS
@@ -66,7 +66,7 @@ def run_six_agent_evaluation():
 
     records = []
     
-    # Trackers for Day 2 Brief metrics
+    # Trackers for clinical triage metrics
     correct_auto_triage = 0
     incorrect_auto_triage = 0
     refers_count = 0
@@ -152,7 +152,7 @@ def run_six_agent_evaluation():
 
         is_match = (true_dx == pred_class)
 
-        # Update Day 2 Brief metrics
+        # Update clinical triage metrics
         if decision == "AUTO_TRIAGE":
             if is_match:
                 correct_auto_triage += 1
@@ -220,7 +220,7 @@ def run_six_agent_evaluation():
         json.dump(summary_stats, f, indent=2)
 
     print("\n" + "=" * 70)
-    print("SIX-AGENT EVALUATION SUMMARY (DAY 2 BRIEF)")
+    print("SIX-AGENT CLINICAL EVALUATION SUMMARY")
     print("=" * 70)
     print(f"Overall Accuracy: {acc*100:.2f}% | Macro F1: {macro_f1*100:.2f}%")
     print(f"Correct Auto-Triage:   {correct_auto_triage} ({(correct_auto_triage/max(1, correct_auto_triage+incorrect_auto_triage))*100:.1f}% accuracy on auto-triaged subset)")

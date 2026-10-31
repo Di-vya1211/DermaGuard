@@ -1,6 +1,6 @@
 """
 Agentic DermaGuard - Complete Six-Agent Clinical Screening System
-Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026 (Day 2 / Level 2)
+Track 2 (Healthcare) - Jaypee Agentic AI International Summit 2026
 
 Integrated Six-Agent System:
   A1. Image Quality Agent: Blur, illumination, glare, obstruction, status, and score.
@@ -429,7 +429,7 @@ def make_sharpness_map(bgr):
 # ==============================================================================
 st.markdown("""
 <div class="hero-banner">
-    <div class="hero-badge">Jaypee Agentic AI International Summit 2026 • Day 2 / Level 2</div>
+    <div class="hero-badge">Jaypee Agentic AI International Summit 2026 • Multi-Agent Screening Platform</div>
     <h1 class="hero-title">Agentic DermaGuard: Complete Six-Agent Screening System</h1>
     <p class="hero-desc">Integrated Autonomous Dermatology Pipeline: Quality Sentinel + Diagnosis Backbone + Lesion Morphology + Context Reasoning + Safety Veto + Chief Coordinator</p>
     <div class="pill-row">
@@ -531,7 +531,7 @@ if meta_row is not None:
 
 st.sidebar.markdown("---")
 st.sidebar.caption("""
-**Day 2 Decision Triad:**
+**Clinical Decision Triad:**
 - **AUTO_TRIAGE:** Enough reliable evidence for automated disposition.
 - **RE_IMAGE:** Image quality inadequate; request another scan.
 - **REFER:** Suspicion, uncertainty, or conflicting evidence warrants expert review.
@@ -539,13 +539,13 @@ st.sidebar.caption("""
 
 
 # ==============================================================================
-# MAIN TABS INTERFACE (Level 1 tab removed as requested)
+# MAIN TABS INTERFACE
 # ==============================================================================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔬 Six-Agent Screening & Triage",
     "🤖 The Six-Agent System Architecture",
     "📊 Clinical Performance & Benchmark Analytics",
-    "📁 Final CSV Submission (Day 2 Upload)",
+    "📁 Official CSV Submission & Export",
     "📐 Calibrated Thresholds & Rationale",
 ])
 
@@ -575,7 +575,7 @@ with tab1:
         coord_res = agents["A6"].coordinate(q_res, d_res, l_res, c_res, s_res)
 
         # ----------------------------------------------------------------------
-        # EXACT 5-CARD PIPELINE FLOW (Matching Day 2 Brief Example Diagram)
+        # EXACT 5-CARD PIPELINE FLOW (Multi-Agent Clinical Architecture)
         # ----------------------------------------------------------------------
         fs = coord_res["flow_summary"]
         st.markdown(f"""
@@ -698,10 +698,9 @@ with tab1:
 # TAB 2: SIX-AGENT ARCHITECTURE & DECISION POLICY
 # ------------------------------------------------------------------------------
 with tab2:
-    st.markdown("### 🤖 The Complete Six-Agent Architecture (Day 2 / Level 2)")
+    st.markdown("### 🤖 The Complete Six-Agent Architecture")
     st.markdown("""
-    In accordance with the **Day 2 Brief**, four specialized agents were added to the initial two-agent system.
-    The final architecture integrates all **SIX specialized agents** into one cohesive, explainable decision pipeline.
+    The architecture integrates all **SIX specialized clinical agents** into one cohesive, autonomous, explainable decision pipeline with explicit checks and balances.
     """)
 
     st.markdown("""
@@ -822,12 +821,12 @@ with tab3:
 
 
 # ------------------------------------------------------------------------------
-# TAB 4: FINAL CSV SUBMISSION (DAY 2 UPLOAD)
+# TAB 4: OFFICIAL CSV SUBMISSION & EXPORT
 # ------------------------------------------------------------------------------
 with tab4:
-    st.markdown("### 📁 Final CSV Submission — Upload to API")
+    st.markdown("### 📁 Official CSV Submission & Export")
     st.markdown("""
-    **Instructions from Day 2 Brief:**
+    **Submission & Evaluation Specifications:**
     - Submit **one CSV file** with exactly one row per hidden-test image.
     - Required Columns: **`image_id, prediction, decision`**
       - `image_id`: Official image ID supplied by organizers
