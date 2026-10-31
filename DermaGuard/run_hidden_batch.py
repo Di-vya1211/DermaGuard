@@ -247,7 +247,7 @@ def main():
             "a5_safety_flag": s_res.get("safety_flag"),
             "a5_veto": s_res.get("veto"),
             "a5_trigger": s_res.get("primary_trigger"),
-            "a6_rationale": " | ".join(coord_res.get("rationale_steps", coord_res.get("rationale", []))),
+            "a6_rationale": coord_res.get("traceable_rationale", " | ".join(coord_res.get("rationale_list", []))),
         })
 
         if (i + 1) % 50 == 0 or (i + 1) == len(records_df):

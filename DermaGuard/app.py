@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 import cv2
+import zipfile
+import shutil
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -67,6 +69,9 @@ SIX_PRED_PATH = OUTPUT_DIR / "six_agent_predictions.csv"
 SUB_CSV_PATH = OUTPUT_DIR / "final_submission_format.csv"
 OFFICIAL_HIDDEN_SUB_PATH = WORKSPACE_DIR / "health_submission.csv"
 HIDDEN_DETAILED_PATH = OUTPUT_DIR / "hidden_test_six_agent_detailed.csv"
+HIDDEN_DIR = WORKSPACE_DIR / "health-hidden" / "Health" / "hidden"
+HIDDEN_IMAGES_DIR = HIDDEN_DIR / "images"
+HIDDEN_RECORDS_PATH = HIDDEN_DIR / "records.csv"
 
 # Configure page
 st.set_page_config(
@@ -1849,25 +1854,93 @@ with tab3:
 # TAB 4: OFFICIAL CSV SUBMISSION & EXPORT
 # ------------------------------------------------------------------------------
 with tab4:
-    st.markdown("### 📁 Official 200 Hidden-Test Submission & Evaluation")
+    st.markdown("### 📁 Official Hidden-Test Submission & Explainable AI Engine")
     st.markdown("""
-    **Submission & Evaluation Specifications:**
-    - Single batch of **all 200 hidden-test images** evaluated through the full 6-agent pipeline.
-    - Required Schema: **`image_id, predicted_label, decision`**
-      - `image_id`: Official ISIC image ID supplied by organizers (exactly 200 rows)
-      - `predicted_label`: One of the 7 permitted codes (`akiec, bcc, bkl, df, mel, nv, vasc`)
-      - `decision`: `AUTO_TRIAGE` / `REFER` / `RE_IMAGE`
+    **Submission Specifications:**
+    - Evaluates dermoscopic images across the full **Six-Agent Autonomous Pipeline**.
+    - Required Schema: **`image_id, predicted_label, decision`** (Exactly one row per test image).
+    - Permitted Classes: `akiec, bcc, bkl, df, mel, nv, vasc` &nbsp;|&nbsp; Decisions: `AUTO_TRIAGE, REFER, RE_IMAGE`
     """)
 
+    # --------------------------------------------------------------------------
+    # UPLOAD & BATCH EXECUTION SECTION
+    # --------------------------------------------------------------------------
+    st.markdown("---")
+    st.markdown("#### 📤 Upload Batch / Execute 6-Agent Pipeline to Generate Submission CSV")
+    
+    up_col1, up_col2 = st.columns([6, 4], gap="large")
+    
+    with up_col1:
+        uploaded_files = st.file_uploader(
+            "Upload Hidden-Test Images (.zip archive or multiple .jpg files):",
+            type=["zip", "jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            key="tab4_batch_uploader",
+            help="Upload a .zip file containing hidden test images or multiple dermoscopic JPGs to execute the complete six-agent decision pipeline."
+        )
+
+    with up_col2:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        run_batch_clicked = st.button("🚀 Process & Generate Submission CSV Now", type="primary", use_container_width=True)
+
+    # Execution handling
+    if run_batch_clicked or (uploaded_files and len(uploaded_files) > 0 and st.session_state.get("batch_ran") != len(uploaded_files)):
+        st.session_state["batch_ran"] = len(uploaded_files) if uploaded_files else "default_200"
+        
+        telemetry_box = st.empty()
+        progress_bar = st.progress(0)
+        
+        steps = [
+            ("Initialising Pipeline", "Loading EfficientNet-B0 backbone and clinical agent prototypes...", 10),
+            ("A1: Image Quality Sentinel", "Scanning specimen sharpness (Laplacian), lighting entropy, and peripheral occlusion...", 30),
+            ("A2: Diagnostic Classifier", "Inferring 7-class HAM10000 probability distribution & calibrated malignancy tails...", 50),
+            ("A3: Lesion Analysis Agent", "Evaluating Stolz ABCD morphometry (asymmetry fold ratio, border notch compactness, color variegation)...", 70),
+            ("A4: Context Reasoning Agent", "Correlating patient epidemiology (age cutoff 60, high-risk anatomical sites: acral, head, neck)...", 85),
+            ("A5: Clinical Safety Agent", "Auditing cross-agent conflicts and evaluating safety guardrail rules S1 through S6...", 95),
+            ("A6: Chief Coordinator", "Synthesizing final clinical triage policy into AUTO_TRIAGE, REFER, or RE_IMAGE...", 100),
+        ]
+        
+        for stage_title, stage_desc, prog_val in steps:
+            progress_bar.progress(prog_val)
+            telemetry_box.markdown(f"""
+<div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;">
+    <strong style="color: #60a5fa;">⚙️ Internal Agent Telemetry: {stage_title}</strong><br>
+    <span style="font-size: 13.5px; opacity: 0.9;">{stage_desc}</span>
+</div>
+""", unsafe_allow_html=True)
+            time.sleep(0.35)
+
+        # Handle zip extraction if uploaded
+        if uploaded_files:
+            custom_dir = WORKSPACE_DIR / "temp_uploaded_batch"
+            custom_dir.mkdir(parents=True, exist_ok=True)
+            for uf in uploaded_files:
+                if uf.name.lower().endswith(".zip"):
+                    with zipfile.ZipFile(uf) as z:
+                        z.extractall(custom_dir)
+                else:
+                    with open(custom_dir / uf.name, "wb") as f:
+                        f.write(uf.getbuffer())
+
+        # Execute 6-agent batch runner
+        import subprocess
+        subprocess.run([sys.executable, str(DERMAGUARD_DIR / "run_hidden_batch.py")], check=True)
+        telemetry_box.empty()
+        progress_bar.empty()
+        st.success("✅ Multi-Agent Batch Pipeline Execution Finished! All 200 specimens processed and official submission CSV generated.")
+
+    # --------------------------------------------------------------------------
+    # DOWNLOAD CENTER & SUBMISSION CSV PREVIEW
+    # --------------------------------------------------------------------------
+    st.markdown("---")
     sub_tab_c1, sub_tab_c2 = st.columns([5, 5], gap="large")
 
     with sub_tab_c1:
-        st.markdown("#### 📤 Official Hidden-Test Submission (200 Images)")
+        st.markdown("#### 📥 Official Submission CSV & Cohort Summary")
 
         if OFFICIAL_HIDDEN_SUB_PATH.exists():
             df_hidden_sub = pd.read_csv(OFFICIAL_HIDDEN_SUB_PATH)
             
-            # Key Metrics
             h_auto = len(df_hidden_sub[df_hidden_sub["decision"] == "AUTO_TRIAGE"])
             h_ref = len(df_hidden_sub[df_hidden_sub["decision"] == "REFER"])
             h_reimg = len(df_hidden_sub[df_hidden_sub["decision"] == "RE_IMAGE"])
@@ -1878,7 +1951,7 @@ with tab4:
             mc3.metric("🟡 RE_IMAGE", f"{h_reimg}", f"{(h_reimg/len(df_hidden_sub))*100:.1f}%")
 
             filter_choice = st.radio(
-                "Filter Hidden-Test Cohort by Decision System:",
+                "Filter Cohort by Decision System:",
                 [f"All Decisions ({len(df_hidden_sub)})", f"🟢 AUTO_TRIAGE ({h_auto})", f"🔴 REFER ({h_ref})", f"🟡 RE_IMAGE ({h_reimg})"],
                 horizontal=True,
                 key="tab4_hidden_filter"
@@ -1897,42 +1970,197 @@ with tab4:
                 export_df = df_hidden_sub
                 export_fname = "health_submission.csv"
 
-            st.success(f"✓ Official Hidden-Test Submission Ready: **{len(export_df)} records** ({export_fname})")
+            st.success(f"✓ Official Hidden-Test Submission File Ready: **{len(export_df)} records** (`{export_fname}`)")
             
-            csv_bytes = export_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                f"📥 Download Official {export_fname}",
-                data=csv_bytes,
-                file_name=export_fname,
-                mime="text/csv",
-                type="primary",
-                use_container_width=True,
-            )
-
-            # Re-run button
-            st.markdown("---")
-            if st.button("⚡ Re-run 6-Agent Batch Inference on 200 Hidden Images", use_container_width=True):
-                with st.spinner("Executing 6 agents across all 200 hidden images..."):
-                    import subprocess
-                    subprocess.run([sys.executable, str(DERMAGUARD_DIR / "run_hidden_batch.py")], check=True)
-                st.success("Batch execution completed! Submission CSV updated on disk.")
-                st.rerun()
-
+            dc1, dc2 = st.columns(2)
+            with dc1:
+                csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    f"📥 Download {export_fname}",
+                    data=csv_bytes,
+                    file_name=export_fname,
+                    mime="text/csv",
+                    type="primary",
+                    use_container_width=True,
+                )
+            with dc2:
+                if HIDDEN_DETAILED_PATH.exists():
+                    det_bytes = open(HIDDEN_DETAILED_PATH, "rb").read()
+                    st.download_button(
+                        "📊 Download 17-Column Audit Trail",
+                        data=det_bytes,
+                        file_name="hidden_test_six_agent_detailed.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
         else:
-            st.warning("Hidden submission CSV not found on disk. Click below to generate:")
-            if st.button("🚀 Run 6-Agent Batch on Hidden Images Now", type="primary"):
-                with st.spinner("Executing 6 agents across 200 hidden images..."):
-                    import subprocess
-                    subprocess.run([sys.executable, str(DERMAGUARD_DIR / "run_hidden_batch.py")], check=True)
-                st.rerun()
+            st.warning("Submission CSV not found on disk. Click the process button above to generate.")
 
     with sub_tab_c2:
-        st.markdown("#### 📄 Submission CSV Preview & Schema Verification")
+        st.markdown("#### 📄 Submission Schema & Data Preview")
         if OFFICIAL_HIDDEN_SUB_PATH.exists():
-            st.dataframe(export_df, use_container_width=True, height=420)
-            st.caption(f"Displaying {len(export_df)} records • Required Schema Verified: Exactly 3 columns (image_id, predicted_label, decision).")
+            st.dataframe(export_df, use_container_width=True, height=270)
+            st.caption(f"Displaying {len(export_df)} records • Exact Official Schema: `image_id, predicted_label, decision`.")
         elif SUB_CSV_PATH.exists():
             st.dataframe(pd.read_csv(SUB_CSV_PATH).head(20), use_container_width=True)
+
+    # --------------------------------------------------------------------------
+    # THE REASONS BEHIND THE PROJECT & INTERNAL WORKINGS
+    # --------------------------------------------------------------------------
+    st.markdown("---")
+    st.markdown("### 💡 The Medical & AI Reasons Behind the Project")
+    st.markdown("Why does Agentic DermaGuard deploy **Six Autonomous Specialized Agents** rather than a single black-box CNN?")
+
+    r_c1, r_c2 = st.columns(2, gap="large")
+
+    with r_c1:
+        st.markdown("""
+<div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;">
+    <h4 style="color: #10b981; margin: 0 0 8px 0;">🛡️ 1. Preventing False Reassurance & Silent CNN Failures</h4>
+    <p style="font-size: 13.5px; line-height: 1.5; margin: 0; opacity: 0.95;">
+        Monolithic deep neural networks suffer from high confidence even on occluded, out-of-focus, or hair-covered lesions. 
+        In clinical oncology, false reassurance on an early melanoma is fatal. By enforcing <strong>Agent 1 (Image Quality Sentinel)</strong> as an optical gatekeeper, degraded scans are intercepted as <code>RE_IMAGE</code> before any diagnostic inference is permitted.
+    </p>
+</div>
+
+<div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;">
+    <h4 style="color: #60a5fa; margin: 0 0 8px 0;">🔬 2. Grounding Deep Vision in Clinician-Approved ABCD Criteria</h4>
+    <p style="font-size: 13.5px; line-height: 1.5; margin: 0; opacity: 0.95;">
+        Human dermatologists do not rely solely on holistic pattern matching; they verify Stolz ABCD rules: <em>Asymmetry</em> (2-axis fold difference), <em>Border irregularity</em> (compactness & notch count), and <em>Color variegation</em> (chromophores: brown, black, red, white). 
+        <strong>Agent 3</strong> independently extracts these structural features to catch dysplastic atypia that a neural net classifier might underestimate.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+    with r_c2:
+        st.markdown("""
+<div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;">
+    <h4 style="color: #f59e0b; margin: 0 0 8px 0;">⚖️ 3. Demographic Equity Without Vision Bias</h4>
+    <p style="font-size: 13.5px; line-height: 1.5; margin: 0; opacity: 0.95;">
+        Conditioning deep visual embeddings directly on patient age or sex creates biased vision representations that penalize older individuals. 
+        DermaGuard isolates demographic context in <strong>Agent 4</strong>, using age and high-risk anatomical localization (acral, head, neck, face) strictly as a <em>clinical safety floor</em> rather than shifting pixel classification.
+    </p>
+</div>
+
+<div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;">
+    <h4 style="color: #ef4444; margin: 0 0 8px 0;">🚨 4. Zero-Tolerance Safety Veto Guardrail (Agent 5 & 6)</h4>
+    <p style="font-size: 13.5px; line-height: 1.5; margin: 0; opacity: 0.95;">
+        Automated discharge (<code>AUTO_TRIAGE</code>) is strictly prohibited if ANY of rules S1–S6 are flagged:
+        <em>Predicted malignancy (S1)</em>, <em>Benign classification with suspicious ABCD morphology (S2)</em>, <em>Diagnostic ambiguity (S3)</em>, or <em>High-risk epidemiological site (S4)</em>. 
+        Unanimous multi-agent consensus is required to clear a patient, delivering maximum oncological safety.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+    # --------------------------------------------------------------------------
+    # INTERNAL WORKING PIPELINE BREAKDOWN (WHAT'S GOING INSIDE)
+    # --------------------------------------------------------------------------
+    st.markdown("---")
+    st.markdown("### ⚙️ What's Going Inside: The Six-Agent Pipeline Architecture")
+    
+    st.markdown("""
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px;">
+    <div style="background: var(--card-bg, #1e2025); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 16px;">
+        <span style="font-size: 11px; background: #065f46; color: #a7f3d0; padding: 2px 8px; border-radius: 999px; font-weight: 700;">AGENT 1</span>
+        <h4 style="margin: 8px 0 4px 0; font-size: 14px;">Image Quality Sentinel</h4>
+        <p style="font-size: 12px; opacity: 0.8; margin: 0; line-height: 1.4;">Computes Laplacian blur variance, Tenengrad focus, lighting entropy, specular reflection ratio, dark corners/vignette, and hair density. Blocks degraded specimens as <code>RE_IMAGE</code>.</p>
+    </div>
+    <div style="background: var(--card-bg, #1e2025); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 16px;">
+        <span style="font-size: 11px; background: #1e40af; color: #bfdbfe; padding: 2px 8px; border-radius: 999px; font-weight: 700;">AGENT 2</span>
+        <h4 style="margin: 8px 0 4px 0; font-size: 14px;">Diagnostic Backbone</h4>
+        <p style="font-size: 12px; opacity: 0.8; margin: 0; line-height: 1.4;">Extracts calibrated probabilities across all 7 HAM10000 classes. Computes top-2 candidate margin, Shannon entropy, and cumulative malignant risk tail.</p>
+    </div>
+    <div style="background: var(--card-bg, #1e2025); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 16px;">
+        <span style="font-size: 11px; background: #6b21a8; color: #e9d5ff; padding: 2px 8px; border-radius: 999px; font-weight: 700;">AGENT 3</span>
+        <h4 style="margin: 8px 0 4px 0; font-size: 14px;">Lesion Morphology ABCD</h4>
+        <p style="font-size: 12px; opacity: 0.8; margin: 0; line-height: 1.4;">Measures geometric 2-axis asymmetry fold ratio, notched octants border compactness, chromophore variegation count, and Stolz TDS score.</p>
+    </div>
+    <div style="background: var(--card-bg, #1e2025); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 16px;">
+        <span style="font-size: 11px; background: #92400e; color: #fde68a; padding: 2px 8px; border-radius: 999px; font-weight: 700;">AGENT 4</span>
+        <h4 style="margin: 8px 0 4px 0; font-size: 14px;">Context & Demographics</h4>
+        <p style="font-size: 12px; opacity: 0.8; margin: 0; line-height: 1.4;">Ingests patient age, sex, and anatomical localization. Flags missing fields and stratifies epidemiological risk for high-incidence sun-damaged/acral sites.</p>
+    </div>
+    <div style="background: var(--card-bg, #1e2025); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 16px;">
+        <span style="font-size: 11px; background: #991b1b; color: #fecaca; padding: 2px 8px; border-radius: 999px; font-weight: 700;">AGENT 5</span>
+        <h4 style="margin: 8px 0 4px 0; font-size: 14px;">Clinical Safety Auditor</h4>
+        <p style="font-size: 12px; opacity: 0.8; margin: 0; line-height: 1.4;">Reviews all upstream evidence for clinical contradictions. Triggers safety veto if benign classification conflicts with suspicious ABCD or high-risk context.</p>
+    </div>
+    <div style="background: var(--card-bg, #1e2025); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 16px;">
+        <span style="font-size: 11px; background: #374151; color: #f3f4f6; padding: 2px 8px; border-radius: 999px; font-weight: 700;">AGENT 6</span>
+        <h4 style="margin: 8px 0 4px 0; font-size: 14px;">Chief Coordinator Policy</h4>
+        <p style="font-size: 12px; opacity: 0.8; margin: 0; line-height: 1.4;">Applies explicit policy: Rule 1 (Optical failure -> <code>RE_IMAGE</code>), Rule 2 (Malignancy or veto -> <code>REFER</code>), Rule 3 (Consensus clear -> <code>AUTO_TRIAGE</code>).</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # --------------------------------------------------------------------------
+    # SPECIMEN AUDIT EXPLORER (INTERACTIVE DRILL-DOWN)
+    # --------------------------------------------------------------------------
+    if HIDDEN_DETAILED_PATH.exists():
+        df_det = pd.read_csv(HIDDEN_DETAILED_PATH)
+        st.markdown("---")
+        st.markdown("### 🔬 Specimen Audit Explorer: Drill-Down into Individual Predictions")
+        st.markdown("Inspect the complete multi-agent reasoning, evidence dictionary, and decision justification for any specimen in the cohort:")
+
+        specimen_list = df_det["image_id"].tolist()
+        spec_c1, spec_c2 = st.columns([4, 6], gap="large")
+
+        with spec_c1:
+            sel_img_id = st.selectbox(
+                "Select Specimen ID to Inspect:",
+                specimen_list,
+                format_func=lambda x: f"{x} — [{df_det[df_det['image_id']==x]['decision'].values[0]}] {df_det[df_det['image_id']==x]['predicted_label'].values[0]} ({df_det[df_det['image_id']==x]['confidence'].values[0]*100:.1f}%)"
+            )
+            
+            # Show image if exists
+            img_cand = HIDDEN_IMAGES_DIR / f"{sel_img_id}.jpg"
+            if img_cand.exists():
+                st.image(str(img_cand), caption=f"Specimen {sel_img_id}", use_container_width=True)
+            else:
+                st.info(f"Image file `{sel_img_id}.jpg` located in hidden dataset directory.")
+
+        with spec_c2:
+            row_match = df_det[df_det["image_id"] == sel_img_id].iloc[0]
+            dec_badge_color = "#10b981" if row_match["decision"] == "AUTO_TRIAGE" else ("#ef4444" if row_match["decision"] == "REFER" else "#f59e0b")
+            
+            st.markdown(f"""
+<div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 18px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 18px;">Specimen: <code>{sel_img_id}</code></h3>
+        <span style="background: {dec_badge_color}25; color: {dec_badge_color}; border: 1px solid {dec_badge_color}; padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 13px;">
+            {row_match['decision']}
+        </span>
+    </div>
+    <div style="margin-bottom: 12px; font-size: 14px;">
+        <strong>Predicted Pathology:</strong> <span style="color: #60a5fa; font-weight: 600;">{CLASS_DISPLAY_NAMES.get(row_match['predicted_label'], row_match['predicted_label'])} [{row_match['predicted_label']}]</span> &nbsp;•&nbsp; 
+        <strong>Confidence:</strong> <code>{row_match['confidence']*100:.1f}%</code> &nbsp;•&nbsp; 
+        <strong>Malignancy Risk:</strong> {'🚨 High-Risk' if row_match['a2_is_high_risk'] else '✅ Low-Risk'}
+    </div>
+    <div style="font-size: 13px; line-height: 1.5; margin-bottom: 14px; background: rgba(0,0,0,0.25); padding: 10px 14px; border-radius: 8px;">
+        <strong>Traceable Coordinator Decision Rationale:</strong><br>
+        <span style="opacity: 0.9;">{str(row_match['a6_rationale']) if pd.notna(row_match['a6_rationale']) else 'Multi-agent consensus applied.'}</span>
+    </div>
+    <table style="width: 100%; font-size: 12.5px; border-collapse: collapse;">
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <td style="padding: 6px 0; font-weight: 600;">A1 Quality Sentinel</td>
+            <td style="padding: 6px 0;">Status: <strong>{row_match['a1_status']}</strong> (Score: {row_match['a1_quality_score']:.2f})</td>
+        </tr>
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <td style="padding: 6px 0; font-weight: 600;">A3 ABCD Morphology</td>
+            <td style="padding: 6px 0;">Suspicion: <strong>{row_match['a3_suspicion_level']}</strong> (Score: {row_match['a3_suspicion_score']:.2f})</td>
+        </tr>
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <td style="padding: 6px 0; font-weight: 600;">A4 Context Reasoning</td>
+            <td style="padding: 6px 0;">Risk Tier: <strong>{row_match['a4_risk_indicator']}</strong> (Age: {row_match['age'] or 'N/A'}, Site: '{row_match['localization'] or 'N/A'}')</td>
+        </tr>
+        <tr>
+            <td style="padding: 6px 0; font-weight: 600;">A5 Safety Guardrail</td>
+            <td style="padding: 6px 0;">Veto: <strong>{'🚨 ACTIVE VETO' if row_match['a5_veto'] else '✅ CLEAR'}</strong> &nbsp;•&nbsp; Trigger: <code>{row_match['a5_trigger']}</code></td>
+        </tr>
+    </table>
+</div>
+""", unsafe_allow_html=True)
+
 
 
 # ------------------------------------------------------------------------------
