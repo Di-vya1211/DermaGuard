@@ -1,15 +1,31 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "runtime": "python",
+      "entrypoint": "api/index.py",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "dermaguard",
+          "format": "url",
+          "env": "DERMAGUARD_URL"
+        }
+      ]
+    },
+    "dermaguard": {
+      "root": "DermaGuard",
+      "runtime": "python",
+      "entrypoint": "api/index.py"
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "api/index.py"
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
     }
   ]
 }

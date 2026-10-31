@@ -7,6 +7,10 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
+
+# Injected service binding for the internal 'dermaguard' service
+DERMAGUARD_URL = os.environ.get("DERMAGUARD_URL", "").rstrip("/")
 
 # Pre-computed benchmark metrics on 1,942 validation images
 SUMMARY_METRICS = {
@@ -937,7 +941,16 @@ class handler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path in ["/api/download-csv", "/download-csv"]:
-            csv_data = generate_csv().encode("utf-8")
+            if DERMAGUARD_URL:
+                try:
+                    req = Request(f"{DERMAGUARD_URL}/submission-csv", headers={"User-Agent": "Vercel-App-Gateway"})
+                    with urlopen(req, timeout=5) as response:
+                        csv_data = response.read()
+                except Exception:
+                    csv_data = generate_csv().encode("utf-8")
+            else:
+                csv_data = generate_csv().encode("utf-8")
+
             self.send_response(200)
             self.send_header("Content-Type", "text/csv; charset=utf-8")
             self.send_header("Content-Disposition", 'attachment; filename="final_submission_format.csv"')
@@ -947,10 +960,23 @@ class handler(BaseHTTPRequestHandler):
             return
 
         elif path.startswith("/api/predict"):
-            params = parse_qs(parsed.query)
-            case_key = params.get("case", ["case1"])[0]
-            case_data = CLINICAL_CASES.get(case_key, CLINICAL_CASES["case1"])
-            resp_body = json.dumps(case_data).encode("utf-8")
+            if DERMAGUARD_URL:
+                try:
+                    target_url = f"{DERMAGUARD_URL}/predict?{parsed.query}" if parsed.query else f"{DERMAGUARD_URL}/predict"
+                    req = Request(target_url, headers={"User-Agent": "Vercel-App-Gateway"})
+                    with urlopen(req, timeout=5) as response:
+                        resp_body = response.read()
+                except Exception:
+                    params = parse_qs(parsed.query)
+                    case_key = params.get("case", ["case1"])[0]
+                    case_data = CLINICAL_CASES.get(case_key, CLINICAL_CASES["case1"])
+                    resp_body = json.dumps(case_data).encode("utf-8")
+            else:
+                params = parse_qs(parsed.query)
+                case_key = params.get("case", ["case1"])[0]
+                case_data = CLINICAL_CASES.get(case_key, CLINICAL_CASES["case1"])
+                resp_body = json.dumps(case_data).encode("utf-8")
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(resp_body)))
@@ -959,7 +985,16 @@ class handler(BaseHTTPRequestHandler):
             return
 
         elif path.startswith("/api/metrics"):
-            resp_body = json.dumps(SUMMARY_METRICS).encode("utf-8")
+            if DERMAGUARD_URL:
+                try:
+                    req = Request(f"{DERMAGUARD_URL}/metrics", headers={"User-Agent": "Vercel-App-Gateway"})
+                    with urlopen(req, timeout=5) as response:
+                        resp_body = response.read()
+                except Exception:
+                    resp_body = json.dumps(SUMMARY_METRICS).encode("utf-8")
+            else:
+                resp_body = json.dumps(SUMMARY_METRICS).encode("utf-8")
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(resp_body)))
@@ -979,14 +1014,33 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.startswith("/api/predict"):
             content_length = int(self.headers.get("Content-Length", 0))
-            post_data = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
-            try:
-                data = json.loads(post_data)
-            except Exception:
-                data = {}
-            case_key = data.get("case", "case1")
-            case_data = CLINICAL_CASES.get(case_key, CLINICAL_CASES["case1"])
-            resp_body = json.dumps(case_data).encode("utf-8")
+            post_data = self.rfile.read(content_length) if content_length > 0 else b"{}"
+
+            if DERMAGUARD_URL:
+                try:
+                    req = Request(f"{DERMAGUARD_URL}/predict", data=post_data, headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "Vercel-App-Gateway"
+                    })
+                    with urlopen(req, timeout=5) as response:
+                        resp_body = response.read()
+                except Exception:
+                    try:
+                        data = json.loads(post_data.decode("utf-8"))
+                    except Exception:
+                        data = {}
+                    case_key = data.get("case", "case1")
+                    case_data = CLINICAL_CASES.get(case_key, CLINICAL_CASES["case1"])
+                    resp_body = json.dumps(case_data).encode("utf-8")
+            else:
+                try:
+                    data = json.loads(post_data.decode("utf-8"))
+                except Exception:
+                    data = {}
+                case_key = data.get("case", "case1")
+                case_data = CLINICAL_CASES.get(case_key, CLINICAL_CASES["case1"])
+                resp_body = json.dumps(case_data).encode("utf-8")
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(resp_body)))

@@ -1,0 +1,1 @@
+# Lightweight requirements for DermaGuard internal backend service
