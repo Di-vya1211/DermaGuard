@@ -65,9 +65,8 @@ THR_PATH = OUTPUT_DIR / "thresholds.json"
 SIX_SUMMARY_PATH = OUTPUT_DIR / "six_agent_summary.json"
 SIX_PRED_PATH = OUTPUT_DIR / "six_agent_predictions.csv"
 SUB_CSV_PATH = OUTPUT_DIR / "final_submission_format.csv"
-BANNER_PATH = DERMAGUARD_DIR / "banner.png"
-BANNER_DARK_PATH = DERMAGUARD_DIR / "banner_dark.png"
-BANNER_LIGHT_PATH = DERMAGUARD_DIR / "banner_light.png"
+OFFICIAL_HIDDEN_SUB_PATH = WORKSPACE_DIR / "health_submission.csv"
+HIDDEN_DETAILED_PATH = OUTPUT_DIR / "hidden_test_six_agent_detailed.csv"
 
 # Configure page
 st.set_page_config(
@@ -677,12 +676,7 @@ df_submission = load_submission_records()
 # ==============================================================================
 # TOP BRAND BANNER & HERO HEADER
 # ==============================================================================
-banner_file = BANNER_DARK_PATH if theme_mode in ["Dark", "Light Dark"] else BANNER_LIGHT_PATH
-if not banner_file.exists():
-    banner_file = BANNER_PATH
-
-if banner_file.exists():
-    st.image(str(banner_file), use_container_width=True)
+# Top Hero Header (Banner Image Removed as requested)
 
 st.markdown("""
 <div class="hero-banner">
@@ -1855,50 +1849,59 @@ with tab3:
 # TAB 4: OFFICIAL CSV SUBMISSION & EXPORT
 # ------------------------------------------------------------------------------
 with tab4:
-    st.markdown("### 📁 Official CSV Submission & Export")
+    st.markdown("### 📁 Official 200 Hidden-Test Submission & Evaluation")
     st.markdown("""
     **Submission & Evaluation Specifications:**
-    - Submit **one CSV file** with exactly one row per hidden-test image.
-    - Required Columns: **`image_id, prediction, decision`**
-      - `image_id`: Official image ID supplied by organizers
-      - `prediction`: One of the 7 permitted lesion-class codes (`akiec, bcc, bkl, df, mel, nv, vasc`)
+    - Single batch of **all 200 hidden-test images** evaluated through the full 6-agent pipeline.
+    - Required Schema: **`image_id, predicted_label, decision`**
+      - `image_id`: Official ISIC image ID supplied by organizers (exactly 200 rows)
+      - `predicted_label`: One of the 7 permitted codes (`akiec, bcc, bkl, df, mel, nv, vasc`)
       - `decision`: `AUTO_TRIAGE` / `REFER` / `RE_IMAGE`
     """)
 
     sub_tab_c1, sub_tab_c2 = st.columns([5, 5], gap="large")
 
     with sub_tab_c1:
-        st.markdown("#### 📤 Generate & Download Submission CSV")
-        st.markdown("Download the pre-compiled submission CSV evaluated on the benchmark dataset:")
+        st.markdown("#### 📤 Official Hidden-Test Submission (200 Images)")
 
-        if SUB_CSV_PATH.exists():
-            df_sub = pd.read_csv(SUB_CSV_PATH)
+        if OFFICIAL_HIDDEN_SUB_PATH.exists():
+            df_hidden_sub = pd.read_csv(OFFICIAL_HIDDEN_SUB_PATH)
             
+            # Key Metrics
+            h_auto = len(df_hidden_sub[df_hidden_sub["decision"] == "AUTO_TRIAGE"])
+            h_ref = len(df_hidden_sub[df_hidden_sub["decision"] == "REFER"])
+            h_reimg = len(df_hidden_sub[df_hidden_sub["decision"] == "RE_IMAGE"])
+
+            mc1, mc2, mc3 = st.columns(3)
+            mc1.metric("🟢 AUTO_TRIAGE", f"{h_auto}", f"{(h_auto/len(df_hidden_sub))*100:.1f}%")
+            mc2.metric("🔴 REFER", f"{h_ref}", f"{(h_ref/len(df_hidden_sub))*100:.1f}%")
+            mc3.metric("🟡 RE_IMAGE", f"{h_reimg}", f"{(h_reimg/len(df_hidden_sub))*100:.1f}%")
+
             filter_choice = st.radio(
-                "Filter Export Cohort by Decision System:",
-                ["All Decisions (1,942)", "🟢 AUTO_TRIAGE (1,133)", "🔴 REFER (585)", "🟡 RE_IMAGE (224)"],
+                "Filter Hidden-Test Cohort by Decision System:",
+                [f"All Decisions ({len(df_hidden_sub)})", f"🟢 AUTO_TRIAGE ({h_auto})", f"🔴 REFER ({h_ref})", f"🟡 RE_IMAGE ({h_reimg})"],
                 horizontal=True,
-                key="tab4_export_filter"
+                key="tab4_hidden_filter"
             )
 
             if "AUTO_TRIAGE" in filter_choice:
-                export_df = df_sub[df_sub["decision"] == "AUTO_TRIAGE"]
-                export_fname = "auto_triage_cohort.csv"
+                export_df = df_hidden_sub[df_hidden_sub["decision"] == "AUTO_TRIAGE"]
+                export_fname = "health_submission_auto_triage.csv"
             elif "REFER" in filter_choice:
-                export_df = df_sub[df_sub["decision"] == "REFER"]
-                export_fname = "refer_cohort.csv"
+                export_df = df_hidden_sub[df_hidden_sub["decision"] == "REFER"]
+                export_fname = "health_submission_refer.csv"
             elif "RE_IMAGE" in filter_choice:
-                export_df = df_sub[df_sub["decision"] == "RE_IMAGE"]
-                export_fname = "re_image_cohort.csv"
+                export_df = df_hidden_sub[df_hidden_sub["decision"] == "RE_IMAGE"]
+                export_fname = "health_submission_re_image.csv"
             else:
-                export_df = df_sub
-                export_fname = "final_submission_format.csv"
+                export_df = df_hidden_sub
+                export_fname = "health_submission.csv"
 
-            st.success(f"✓ Formatted CSV ready: **{len(export_df)} rows** ({export_fname})")
+            st.success(f"✓ Official Hidden-Test Submission Ready: **{len(export_df)} records** ({export_fname})")
             
             csv_bytes = export_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                f"📥 Download CSV: {export_fname}",
+                f"📥 Download Official {export_fname}",
                 data=csv_bytes,
                 file_name=export_fname,
                 mime="text/csv",
@@ -1906,19 +1909,30 @@ with tab4:
                 use_container_width=True,
             )
 
+            # Re-run button
             st.markdown("---")
-            st.markdown("#### 🧪 Run on 200 Hidden-Test Images (When Released at 10:00 AM)")
-            test_zip = st.file_uploader("Upload Hidden-Test Images (.zip)", type=["zip"])
-            if test_zip is not None:
-                st.info("Uploaded hidden-test zip received. System is configured to execute all 6 agents and export the matching CSV.")
+            if st.button("⚡ Re-run 6-Agent Batch Inference on 200 Hidden Images", use_container_width=True):
+                with st.spinner("Executing 6 agents across all 200 hidden images..."):
+                    import subprocess
+                    subprocess.run([sys.executable, str(DERMAGUARD_DIR / "run_hidden_batch.py")], check=True)
+                st.success("Batch execution completed! Submission CSV updated on disk.")
+                st.rerun()
+
         else:
-            st.warning("Submission CSV not found on disk.")
+            st.warning("Hidden submission CSV not found on disk. Click below to generate:")
+            if st.button("🚀 Run 6-Agent Batch on Hidden Images Now", type="primary"):
+                with st.spinner("Executing 6 agents across 200 hidden images..."):
+                    import subprocess
+                    subprocess.run([sys.executable, str(DERMAGUARD_DIR / "run_hidden_batch.py")], check=True)
+                st.rerun()
 
     with sub_tab_c2:
         st.markdown("#### 📄 Submission CSV Preview & Schema Verification")
-        if SUB_CSV_PATH.exists():
-            st.dataframe(export_df.head(20), use_container_width=True)
-            st.caption(f"Displaying top rows of {len(export_df)} records • Schema: Exactly 3 columns (image_id, prediction, decision).")
+        if OFFICIAL_HIDDEN_SUB_PATH.exists():
+            st.dataframe(export_df, use_container_width=True, height=420)
+            st.caption(f"Displaying {len(export_df)} records • Required Schema Verified: Exactly 3 columns (image_id, predicted_label, decision).")
+        elif SUB_CSV_PATH.exists():
+            st.dataframe(pd.read_csv(SUB_CSV_PATH).head(20), use_container_width=True)
 
 
 # ------------------------------------------------------------------------------

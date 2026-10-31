@@ -442,9 +442,12 @@ CLINICAL_CASES = {
 }
 
 def generate_csv():
-    rows = ["image_id,prediction,decision"]
+    sub_path = Path(__file__).resolve().parent.parent / "health_submission.csv"
+    if sub_path.exists():
+        return sub_path.read_text(encoding="utf-8")
+    rows = ["image_id,predicted_label,decision"]
     for p in SAMPLE_PREDICTIONS:
-        rows.append(f"{p['image_id']},{p['prediction']},{p['decision']}")
+        rows.append(f"{p['image_id']},{p.get('predicted_label', p.get('prediction', 'nv'))},{p['decision']}")
     return "\n".join(rows)
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -1129,11 +1132,6 @@ HTML_PAGE = """<!DOCTYPE html>
 
     <!-- Main View -->
     <main>
-        <!-- Top Brand Identity Banner -->
-        <div style="margin-bottom: 18px;">
-            <img id="top-brand-banner" src="/banner_dark.png" alt="Agentic DermaGuard" style="width: 100%; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.25);" onerror="this.onerror=null; this.src='/banner.png';">
-        </div>
-
         <!-- Hero Header -->
         <div class="hero-banner">
             <div class="hero-badge">Jaypee Agentic AI International Summit 2026 • Multi-Agent Screening Platform</div>
@@ -1283,15 +1281,15 @@ HTML_PAGE = """<!DOCTYPE html>
 
         <!-- TAB 4: FINAL CSV SUBMISSION -->
         <div id="tab4" class="tab-panel">
-            <h3 style="margin-bottom: 8px;">📁 Official CSV Submission & Export</h3>
+            <h3 style="margin-bottom: 8px;">📁 Official 200 Hidden-Test Submission & Export</h3>
             <p style="color: var(--subtext-color); font-size: 13.5px; margin-bottom: 16px;">
-                Exact 3-column CSV format (<code>image_id, prediction, decision</code>) ready for upload:
+                Official 3-column CSV format (<code>image_id, predicted_label, decision</code>) evaluated across all 200 hidden images:
             </p>
-            <a href="/api/download-csv" class="btn-download" download="final_submission_format.csv">⬇️ Download final_submission_format.csv</a>
+            <a href="/api/download-csv" class="btn-download" download="health_submission.csv">⬇️ Download Official health_submission.csv (200 rows)</a>
             
             <table>
                 <thead>
-                    <tr><th>image_id</th><th>prediction</th><th>decision</th></tr>
+                    <tr><th>image_id</th><th>predicted_label</th><th>decision</th></tr>
                 </thead>
                 <tbody id="preview-tbody"></tbody>
             </table>
@@ -2020,7 +2018,7 @@ class handler(BaseHTTPRequestHandler):
 
             self.send_response(200)
             self.send_header("Content-Type", "text/csv; charset=utf-8")
-            self.send_header("Content-Disposition", 'attachment; filename="final_submission_format.csv"')
+            self.send_header("Content-Disposition", 'attachment; filename="health_submission.csv"')
             self.send_header("Content-Length", str(len(csv_data)))
             self.end_headers()
             self.wfile.write(csv_data)
